@@ -15,13 +15,48 @@ const fakeAnnouncements = [
   { id: 3, title: 'Keynote Speaker', body: 'Dr. Jane Doe will deliver the keynote address.' },
 ];
 
-function Announcements() {
+function Announcements({ announcements, setAnnouncements, adminMode }: {
+  announcements: { id: number; title: string; body: string }[];
+  setAnnouncements: React.Dispatch<React.SetStateAction<{ id: number; title: string; body: string }[]>>;
+  adminMode: boolean;
+}) {
+  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [draft, setDraft] = React.useState<{ title: string; body: string }>({ title: '', body: '' });
+
+  function startEdit(a: { id: number; title: string; body: string }) {
+    setEditingId(a.id);
+    setDraft({ title: a.title, body: a.body });
+  }
+
+  function saveEdit(id: number) {
+    setAnnouncements(prev => prev.map(p => (p.id === id ? { ...p, title: draft.title, body: draft.body } : p)));
+    setEditingId(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
   return (
     <div className="announcements">
-      {fakeAnnouncements.map(a => (
+      {announcements.map(a => (
         <div key={a.id} className="announcement">
-          <h3>{a.title}</h3>
-          <p>{a.body}</p>
+          {editingId === a.id ? (
+            <div>
+              <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
+              <textarea value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} />
+              <div>
+                <button onClick={() => saveEdit(a.id)}>Save</button>
+                <button onClick={cancelEdit}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h3 style={{ display: 'inline-block', marginRight: 8 }}>{a.title}</h3>
+              {adminMode && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
+              <p>{a.body}</p>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -37,6 +72,8 @@ export default function App(): React.ReactElement {
       return false;
     }
   });
+
+  const [announcements, setAnnouncements] = useState(() => fakeAnnouncements);
 
   useEffect(() => {
     try {
@@ -61,8 +98,10 @@ export default function App(): React.ReactElement {
         ))}
       </div>
       <div className="tab-content">
-        {activeTab === 'announcements' && <Announcements />}
-        {activeTab === 'calendar' && <CalendarView />}
+        {activeTab === 'announcements' && (
+          <Announcements announcements={announcements} setAnnouncements={setAnnouncements} adminMode={adminMode} />
+        )}
+        {activeTab === 'calendar' && <CalendarView adminMode={adminMode} />}
         {activeTab === 'settings' && (
           <Settings adminMode={adminMode} setAdminMode={setAdminMode} />
         )}

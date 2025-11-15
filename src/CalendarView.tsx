@@ -25,10 +25,15 @@ interface EventDetailsProps {
   description?: string;
   location?: string;
   onClose: () => void;
+  adminMode?: boolean;
+  onSave?: (updated: SampleEvent) => void;
 }
 
-function EventDetails({ title, start, description, location, onClose }: EventDetailsProps) {
+function EventDetails({ title, start, description, location, onClose, adminMode = false, onSave }: EventDetailsProps) {
   if (!title && !start) return null;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<{ title: string; start: string; description?: string; location?: string }>({ title, start, description, location });
 
   const overlayStyle: React.CSSProperties = {
     position: 'fixed',
@@ -52,30 +57,75 @@ function EventDetails({ title, start, description, location, onClose }: EventDet
     boxShadow: '0 6px 18px rgba(0,0,0,0.2)'
   };
 
+  function startEdit() {
+    setDraft({ title, start, description, location });
+    setIsEditing(true);
+  }
+
+  function save() {
+    if (onSave) {
+      // Build minimal payload — id will be filled by parent if needed
+      onSave({ id: '', title: draft.title, start: draft.start, description: draft.description, location: draft.location });
+    }
+    setIsEditing(false);
+    onClose();
+  }
+
+  function cancel() {
+    setIsEditing(false);
+  }
+
   return (
     <div style={overlayStyle} onClick={onClose} role="dialog" aria-modal="true">
       <div style={boxStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          <div>
+            {adminMode && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
+            <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          </div>
         </div>
-        <div style={{ color: '#444', marginBottom: 8 }}>
-          <strong>Date:</strong> {start}
-        </div>
-        {description && <p style={{ marginTop: 0 }}>{description}</p>}
-        {location && (
-          <div style={{ marginTop: 8 }}><strong>Location:</strong> {location}</div>
+
+        {isEditing ? (
+          <div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Title</label>
+              <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} style={{ width: '100%' }} />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Date</label>
+              <input type="date" value={draft.start} onChange={e => setDraft(d => ({ ...d, start: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Description</label>
+              <textarea value={draft.description} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))} style={{ width: '100%' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={save}>Save</button>
+              <button onClick={cancel}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ color: '#444', marginBottom: 8 }}>
+              <strong>Date:</strong> {start}
+            </div>
+            {description && <p style={{ marginTop: 0 }}>{description}</p>}
+            {location && (
+              <div style={{ marginTop: 8 }}><strong>Location:</strong> {location}</div>
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-export default function CalendarView(): React.ReactElement {
+export default function CalendarView({ adminMode }: { adminMode: boolean }): React.ReactElement {
   const [selectedEvent, setSelectedEvent] = useState<SampleEvent | null>(null);
+  const [events, setEvents] = useState<SampleEvent[]>(() => sampleEvents);
 
   function handleEventClick(info: any) {
-    // info.event is a FullCalendar EventApi
     const e: EventApi = info.event as EventApi;
     const payload: SampleEvent = {
       id: e.id,
@@ -87,6 +137,14 @@ export default function CalendarView(): React.ReactElement {
     setSelectedEvent(payload);
   }
 
+  function handleSaveEvent(updated: SampleEvent) {
+    // updated.id may be empty when coming from EventDetails save; use selectedEvent id
+    const id = selectedEvent ? selectedEvent.id : updated.id;
+    const merged: SampleEvent = { ...updated, id };
+    setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, ...merged } : ev)));
+    setSelectedEvent(merged);
+  }
+
   return (
     <>
       {selectedEvent && (
@@ -96,6 +154,8 @@ export default function CalendarView(): React.ReactElement {
           description={selectedEvent.description}
           location={selectedEvent.location}
           onClose={() => setSelectedEvent(null)}
+          adminMode={adminMode}
+          onSave={handleSaveEvent}
         />
       )}
       <div className="calendar-wrapper">
@@ -105,7 +165,7 @@ export default function CalendarView(): React.ReactElement {
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek' }}
           editable={false}
           selectable={true}
-          events={sampleEvents}
+          events={events}
           eventClick={handleEventClick}
           height="auto"
         />
