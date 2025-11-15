@@ -1,4 +1,3 @@
-
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
@@ -54,3 +53,51 @@ npm run dev -- --port 5174
 - On CI, ensure you run `npx playwright install --with-deps` during setup so browsers are available.
 - Recommended Node.js: 18+.
  
+## Architecture Thoughts
+
+```mermaid
+flowchart LR
+  subgraph Client
+    A[React Browser App]
+    A -->|Sign-in OAuth| Auth[Firebase Auth]
+    A -->|Read/Write| FS[Cloud Firestore]
+    A -->|Calls| CF[Cloud Functions optional backend]
+  end
+
+  subgraph Firebase
+    Auth
+    FS
+    Rules[Firestore Security Rules]
+    Hosting[Firebase Hosting]
+    CF
+  end
+
+  subgraph DataModel
+    U["users/{uid}<br/>profile, email"]
+    R["roles/{uid}<br/>{ isAdmin, isCreator }"]
+    C["content/{id}<br/>{ title, body, owners: (uids), editors: (uids) }"]
+  end
+
+  subgraph CI_Testing
+    EMU["Emulator Suite (Auth + Firestore)"]
+    PW["Playwright tests"]
+  end
+
+  A --> Hosting
+  Hosting --> A
+  FS --> Rules
+  CF -->|Admin SDK| Auth
+  CF -->|Admin SDK| FS
+  CF --> FS
+  Auth --> U
+  FS --> U
+  FS --> R
+  FS --> C
+
+  PW --> EMU
+  EMU --> FS
+  EMU --> Auth
+
+  %% Security rule checks (annotation)
+  Rules -. "allow write if: request.auth != null && (request.auth.token.admin == true || roles document exists for uid || user is in editors list)" .-> FS
+```
