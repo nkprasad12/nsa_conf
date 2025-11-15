@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import CalendarView from './CalendarView';
+import Settings from './Settings';
 
 const TABS = [
   { label: 'Announcements', key: 'announcements' },
   { label: 'Calendar', key: 'calendar' },
+  { label: 'Settings', key: 'settings' },
 ] as const;
 
 const fakeAnnouncements = [
@@ -28,6 +30,21 @@ function Announcements() {
 
 export default function App(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['key']>(TABS[0].key);
+  const [adminMode, setAdminMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('adminMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('adminMode', adminMode ? 'true' : 'false');
+    } catch {
+      // ignore storage errors
+    }
+  }, [adminMode]);
 
   return (
     <div className="app-container">
@@ -46,6 +63,9 @@ export default function App(): React.ReactElement {
       <div className="tab-content">
         {activeTab === 'announcements' && <Announcements />}
         {activeTab === 'calendar' && <CalendarView />}
+        {activeTab === 'settings' && (
+          <Settings adminMode={adminMode} setAdminMode={setAdminMode} />
+        )}
       </div>
     </div>
   );
