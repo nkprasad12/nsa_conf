@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -125,6 +125,19 @@ export default function CalendarView({ adminMode }: { adminMode: boolean }): Rea
   const [selectedEvent, setSelectedEvent] = useState<SampleEvent | null>(null);
   const [events, setEvents] = useState<SampleEvent[]>(() => sampleEvents);
 
+  // compute unique event dates (YYYY-MM-DD), sorted
+  const uniqueDates = useMemo(() => {
+    const dates = events.map(e => (e.start || '').slice(0, 10));
+    return Array.from(new Set(dates)).filter(d => d).sort();
+  }, [events]);
+
+  const exclusiveEnd = (end?: string) => {
+    if (!end) return undefined;
+    const d = new Date(end + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+
   function handleEventClick(info: any) {
     const e: EventApi = info.event as EventApi;
     const payload: SampleEvent = {
@@ -145,6 +158,18 @@ export default function CalendarView({ adminMode }: { adminMode: boolean }): Rea
     setSelectedEvent(merged);
   }
 
+  // If there are 1-3 unique event days, create a compact multi-day view limited to those days
+  const useCompactMultiDay = uniqueDates.length > 0 && uniqueDates.length <= 3;
+  const compactDuration = useCompactMultiDay ? uniqueDates.length : undefined;
+  const compactStart = useCompactMultiDay ? uniqueDates[0] : undefined;
+  const compactEndExclusive = useCompactMultiDay ? exclusiveEnd(uniqueDates[uniqueDates.length - 1]) : undefined;
+
+  // filter events to only those dates (helps if there are out-of-range events)
+  const filteredEvents = useMemo(() => {
+    if (!useCompactMultiDay) return events;
+    const set = new Set(uniqueDates);
+    return events.filter(ev => set.has((ev.start || '').slice(0, 10)));
+  }, [events, useCompactMultiDay, uniqueDates]);
   return (
     <>
       {selectedEvent && (
@@ -161,11 +186,14 @@ export default function CalendarView({ adminMode }: { adminMode: boolean }): Rea
       <div className="calendar-wrapper">
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek' }}
+          initialView={useCompactMultiDay ? 'compactMulti' : 'dayGridMonth'}
+          views={useCompactMultiDay ? { compactMulti: { type: 'dayGrid', duration: { days: compactDuration } } } : undefined}
+          initialDate={compactStart}
+          validRange={useCompactMultiDay ? { start: compactStart, end: compactEndExclusive } : undefined}
+          headerToolbar={{ left: useCompactMultiDay ? '' : 'prev,next today', center: 'title', right: useCompactMultiDay ? '' : 'dayGridMonth,dayGridWeek' }}
           editable={false}
           selectable={true}
-          events={events}
+          events={filteredEvents}
           eventClick={handleEventClick}
           height="auto"
         />
