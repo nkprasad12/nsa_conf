@@ -54,7 +54,8 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
     borderRadius: 8,
     maxWidth: 520,
     width: '90%',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.2)'
+    boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+    color: '#213547'
   };
 
   function startEdit() {
@@ -79,7 +80,7 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
     <div style={overlayStyle} onClick={onClose} role="dialog" aria-modal="true">
       <div style={boxStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
+          <h3 style={{ margin: 0, color: '#213547' }}>{title}</h3>
           <div>
             {isAdmin && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
             <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' }}>✕</button>
@@ -110,9 +111,9 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
             <div style={{ color: '#444', marginBottom: 8 }}>
               <strong>Date:</strong> {start}
             </div>
-            {description && <p style={{ marginTop: 0 }}>{description}</p>}
+            {description && <p style={{ marginTop: 0, color: '#213547' }}>{description}</p>}
             {location && (
-              <div style={{ marginTop: 8 }}><strong>Location:</strong> {location}</div>
+              <div style={{ marginTop: 8, color: '#213547' }}><strong>Location:</strong> {location}</div>
             )}
           </>
         )}
