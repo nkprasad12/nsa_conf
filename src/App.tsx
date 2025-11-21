@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import CalendarView from './CalendarView';
 import Settings from './Settings';
+import { useAuth } from './AuthContext';
 
 const TABS = [
   { label: 'Announcements', key: 'announcements' },
@@ -15,10 +16,10 @@ const fakeAnnouncements = [
   { id: 3, title: 'Keynote Speaker', body: 'Dr. Jane Doe will deliver the keynote address.' },
 ];
 
-function Announcements({ announcements, setAnnouncements, adminMode }: {
+function Announcements({ announcements, setAnnouncements, isAdmin }: {
   announcements: { id: number; title: string; body: string }[];
   setAnnouncements: React.Dispatch<React.SetStateAction<{ id: number; title: string; body: string }[]>>;
-  adminMode: boolean;
+  isAdmin: boolean;
 }) {
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [draft, setDraft] = React.useState<{ title: string; body: string }>({ title: '', body: '' });
@@ -53,7 +54,7 @@ function Announcements({ announcements, setAnnouncements, adminMode }: {
           ) : (
             <>
               <h3 style={{ display: 'inline-block', marginRight: 8 }}>{a.title}</h3>
-              {adminMode && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
+              {isAdmin && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
               <p>{a.body}</p>
             </>
           )}
@@ -65,23 +66,8 @@ function Announcements({ announcements, setAnnouncements, adminMode }: {
 
 export default function App(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['key']>(TABS[0].key);
-  const [adminMode, setAdminMode] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('adminMode') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
+  const { isAdmin } = useAuth();
   const [announcements, setAnnouncements] = useState(() => fakeAnnouncements);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('adminMode', adminMode ? 'true' : 'false');
-    } catch {
-      // ignore storage errors
-    }
-  }, [adminMode]);
 
   return (
     <div className="app-container">
@@ -99,11 +85,11 @@ export default function App(): React.ReactElement {
       </div>
       <div className="tab-content">
         {activeTab === 'announcements' && (
-          <Announcements announcements={announcements} setAnnouncements={setAnnouncements} adminMode={adminMode} />
+          <Announcements announcements={announcements} setAnnouncements={setAnnouncements} isAdmin={isAdmin} />
         )}
-        {activeTab === 'calendar' && <CalendarView adminMode={adminMode} />}
+        {activeTab === 'calendar' && <CalendarView isAdmin={isAdmin} />}
         {activeTab === 'settings' && (
-          <Settings adminMode={adminMode} setAdminMode={setAdminMode} />
+          <Settings />
         )}
       </div>
     </div>

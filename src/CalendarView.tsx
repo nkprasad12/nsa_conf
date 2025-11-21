@@ -25,11 +25,11 @@ interface EventDetailsProps {
   description?: string;
   location?: string;
   onClose: () => void;
-  adminMode?: boolean;
+  isAdmin?: boolean;
   onSave?: (updated: SampleEvent) => void;
 }
 
-function EventDetails({ title, start, description, location, onClose, adminMode = false, onSave }: EventDetailsProps) {
+function EventDetails({ title, start, description, location, onClose, isAdmin = false, onSave }: EventDetailsProps) {
   if (!title && !start) return null;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -81,7 +81,7 @@ function EventDetails({ title, start, description, location, onClose, adminMode 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <h3 style={{ margin: 0 }}>{title}</h3>
           <div>
-            {adminMode && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
+            {isAdmin && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
             <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' }}>✕</button>
           </div>
         </div>
@@ -121,7 +121,7 @@ function EventDetails({ title, start, description, location, onClose, adminMode 
   );
 }
 
-export default function CalendarView({ adminMode }: { adminMode: boolean }): React.ReactElement {
+export default function CalendarView({ isAdmin }: { isAdmin: boolean }): React.ReactElement {
   const [selectedEvent, setSelectedEvent] = useState<SampleEvent | null>(null);
   const [events, setEvents] = useState<SampleEvent[]>(() => sampleEvents);
 
@@ -179,7 +179,7 @@ export default function CalendarView({ adminMode }: { adminMode: boolean }): Rea
           description={selectedEvent.description}
           location={selectedEvent.location}
           onClose={() => setSelectedEvent(null)}
-          adminMode={adminMode}
+          isAdmin={isAdmin}
           onSave={handleSaveEvent}
         />
       )}
