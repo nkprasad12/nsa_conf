@@ -72,9 +72,9 @@ service cloud.firestore {
              ));
     }
     
-    // Roles collection - users can read their own, only admins can write
+    // Roles collection - users can read their own, only admins can read all and write
     match /roles/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow write: if isAdmin();
     }
     

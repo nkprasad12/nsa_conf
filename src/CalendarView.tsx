@@ -385,7 +385,7 @@ export default function CalendarView(): React.ReactElement {
             <div style={{ marginBottom: 8 }}>
               <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
               <input 
-                value={newEvent.allowedEditors.join(', ')} 
+                value={(newEvent.allowedEditors || []).join(', ')} 
                 onChange={e => setNewEvent(prev => ({ ...prev, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                 style={{ width: '100%', padding: 8 }} 
                 placeholder="e.g. uid1, uid2"
@@ -394,7 +394,7 @@ export default function CalendarView(): React.ReactElement {
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
               <input 
-                value={newEvent.allowedGroups.join(', ')} 
+                value={(newEvent.allowedGroups || []).join(', ')} 
                 onChange={e => setNewEvent(prev => ({ ...prev, allowedGroups: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                 style={{ width: '100%', padding: 8 }} 
                 placeholder="e.g. organizers, speakers"

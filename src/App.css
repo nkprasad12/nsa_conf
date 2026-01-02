@@ -98,11 +98,39 @@
   color: #222;
   font-weight: 600;
 }
-.announcement p {
-  font-size: 1.1rem;
-  color: #333;
-  line-height: 1.7;
+
+.user-management table {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
 }
+
+.user-management th {
+  background: #f8f9fa;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.user-management td {
+  color: #213547;
+}
+
+.user-management input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.user-management input[type="text"]:focus {
+  border-color: #646cff;
+  outline: none;
+}
+
 .calendar-placeholder {
   display: flex;
   flex-direction: column;

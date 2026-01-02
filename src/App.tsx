@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import CalendarView from './CalendarView';
 import Settings from './Settings';
+import UserManagement from './UserManagement';
 import { useAuth } from './AuthContext';
 import { db } from './firebase';
 import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
@@ -151,7 +152,7 @@ function Announcements({ announcements, user, isAdmin, groups }: {
             <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
             <input 
               placeholder="e.g. staff, moderators"
-              value={newAnnouncement.allowedGroups.join(', ')} 
+              value={(newAnnouncement.allowedGroups || []).join(', ')} 
               onChange={e => setNewAnnouncement(prev => ({ ...prev, allowedGroups: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
               style={{ width: '100%', padding: 8 }} 
             />
@@ -174,7 +175,7 @@ function Announcements({ announcements, user, isAdmin, groups }: {
               <div style={{ marginBottom: 8 }}>
                 <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
                 <input 
-                  value={draft.allowedEditors.join(', ')} 
+                  value={(draft.allowedEditors || []).join(', ')} 
                   onChange={e => setDraft(d => ({ ...d, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                   style={{ width: '100%', padding: 8 }} 
                 />
@@ -183,7 +184,7 @@ function Announcements({ announcements, user, isAdmin, groups }: {
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
                 <input 
-                  value={draft.allowedGroups.join(', ')} 
+                  value={(draft.allowedGroups || []).join(', ')} 
                   onChange={e => setDraft(d => ({ ...d, allowedGroups: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                   style={{ width: '100%', padding: 8 }} 
                 />
@@ -213,8 +214,18 @@ function Announcements({ announcements, user, isAdmin, groups }: {
 }
 
 export default function App(): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]['key']>(TABS[0].key);
   const { user, isAdmin, groups } = useAuth();
+  
+  const availableTabs = React.useMemo(() => {
+    const tabs = [...TABS];
+    if (isAdmin) {
+      // @ts-ignore - adding a dynamic tab
+      tabs.splice(2, 0, { label: 'Users', key: 'users' });
+    }
+    return tabs;
+  }, [isAdmin]);
+
+  const [activeTab, setActiveTab] = useState<string>(TABS[0].key);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
@@ -234,7 +245,7 @@ export default function App(): React.ReactElement {
     <div className="app-container">
       <h1 className="app-title">NSA Conference Portal</h1>
       <div className="tabs">
-        {TABS.map(tab => (
+        {availableTabs.map(tab => (
           <button
             key={tab.key}
             className={activeTab === tab.key ? 'tab active' : 'tab'}
@@ -249,6 +260,7 @@ export default function App(): React.ReactElement {
           <Announcements announcements={announcements} user={user} isAdmin={isAdmin} groups={groups} />
         )}
         {activeTab === 'calendar' && <CalendarView />}
+        {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'settings' && (
           <Settings />
         )}
