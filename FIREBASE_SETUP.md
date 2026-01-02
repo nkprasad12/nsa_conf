@@ -93,6 +93,33 @@ service cloud.firestore {
 }
 ```
 
+## Managing Permissions
+
+The app supports fine-grained access control for both Announcements and Calendar Events.
+
+### Permission Levels
+
+1.  **Global Admin**: Any user with `isAdmin: true` in their `roles/{uid}` document can edit/delete *any* content.
+2.  **Owner**: The user who created the item (`ownerId`) can always edit/delete it.
+3.  **Allowed Editors**: A list of specific User IDs (UIDs) who are granted edit access to a specific item.
+4.  **Allowed Groups**: A list of group names. Any user who belongs to one of these groups (defined in their `roles/{uid}` document) can edit the item.
+
+### Finding User IDs (UIDs)
+
+To grant specific users edit access, you need their Firebase UID:
+
+1.  **From Firebase Console**: Go to **Authentication** > **Users**. The UID is listed in the "User UID" column.
+2.  **From the App**: When a user is signed in, their UID is available in the `AuthContext`. You can also find it in the `roles` collection in Firestore if they have a role document.
+
+### Managing Groups
+
+To assign a user to a group:
+
+1.  In Firestore, find the user's document in the `roles` collection (ID is their UID).
+2.  Add or update the `groups` field as an **Array** of strings.
+    - Example: `groups: ["staff", "moderators"]`
+3.  In the app, you can now add "staff" to the **Allowed Groups** field of any announcement or event to grant all staff members edit access.
+
 ## How It Works
 
 ### Authentication Flow

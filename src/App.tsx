@@ -27,13 +27,28 @@ function Announcements({ announcements, user, isAdmin, groups }: {
   groups: string[];
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [draft, setDraft] = React.useState<{ title: string; body: string }>({ title: '', body: '' });
+  const [draft, setDraft] = React.useState<{ title: string; body: string; allowedEditors: string[]; allowedGroups: string[] }>({ 
+    title: '', 
+    body: '',
+    allowedEditors: [],
+    allowedGroups: []
+  });
   const [isAdding, setIsAdding] = React.useState(false);
-  const [newAnnouncement, setNewAnnouncement] = React.useState({ title: '', body: '' });
+  const [newAnnouncement, setNewAnnouncement] = React.useState({ 
+    title: '', 
+    body: '',
+    allowedEditors: [] as string[],
+    allowedGroups: [] as string[]
+  });
 
   function startEdit(a: Announcement) {
     setEditingId(a.id);
-    setDraft({ title: a.title, body: a.body });
+    setDraft({ 
+      title: a.title, 
+      body: a.body,
+      allowedEditors: a.allowedEditors || [],
+      allowedGroups: a.allowedGroups || []
+    });
   }
 
   async function saveEdit(id: string) {
@@ -41,7 +56,9 @@ function Announcements({ announcements, user, isAdmin, groups }: {
       const announcementRef = doc(db, 'announcements', id);
       await updateDoc(announcementRef, {
         title: draft.title,
-        body: draft.body
+        body: draft.body,
+        allowedEditors: draft.allowedEditors,
+        allowedGroups: draft.allowedGroups
       });
       setEditingId(null);
     } catch (error) {
@@ -61,6 +78,10 @@ function Announcements({ announcements, user, isAdmin, groups }: {
   }
 
   async function handleAddAnnouncement() {
+    if (!user) {
+      alert('You must be signed in to add announcements.');
+      return;
+    }
     if (!newAnnouncement.title || !newAnnouncement.body) {
       alert('Please fill in both title and body.');
       return;
@@ -71,11 +92,11 @@ function Announcements({ announcements, user, isAdmin, groups }: {
         title: newAnnouncement.title,
         body: newAnnouncement.body,
         ownerId: user.uid,
-        allowedEditors: [],
-        allowedGroups: [],
+        allowedEditors: newAnnouncement.allowedEditors,
+        allowedGroups: newAnnouncement.allowedGroups,
         createdAt: serverTimestamp()
       });
-      setNewAnnouncement({ title: '', body: '' });
+      setNewAnnouncement({ title: '', body: '', allowedEditors: [], allowedGroups: [] });
       setIsAdding(false);
     } catch (error) {
       console.error('Error adding announcement:', error);
@@ -115,6 +136,27 @@ function Announcements({ announcements, user, isAdmin, groups }: {
             onChange={e => setNewAnnouncement(prev => ({ ...prev, body: e.target.value }))} 
             style={{ width: '100%', minHeight: 100, marginBottom: 8, padding: 8 }} 
           />
+          
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
+            <input 
+              placeholder="e.g. uid1, uid2"
+              value={newAnnouncement.allowedEditors.join(', ')} 
+              onChange={e => setNewAnnouncement(prev => ({ ...prev, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
+              style={{ width: '100%', padding: 8 }} 
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
+            <input 
+              placeholder="e.g. staff, moderators"
+              value={newAnnouncement.allowedGroups.join(', ')} 
+              onChange={e => setNewAnnouncement(prev => ({ ...prev, allowedGroups: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
+              style={{ width: '100%', padding: 8 }} 
+            />
+          </div>
+
           <div>
             <button onClick={handleAddAnnouncement}>Post Announcement</button>
             <button onClick={() => setIsAdding(false)} style={{ marginLeft: 8 }}>Cancel</button>
@@ -128,6 +170,25 @@ function Announcements({ announcements, user, isAdmin, groups }: {
             <div>
               <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} style={{ width: '100%', marginBottom: 8 }} />
               <textarea value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} style={{ width: '100%', minHeight: 100, marginBottom: 8 }} />
+              
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
+                <input 
+                  value={draft.allowedEditors.join(', ')} 
+                  onChange={e => setDraft(d => ({ ...d, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
+                  style={{ width: '100%', padding: 8 }} 
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
+                <input 
+                  value={draft.allowedGroups.join(', ')} 
+                  onChange={e => setDraft(d => ({ ...d, allowedGroups: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
+                  style={{ width: '100%', padding: 8 }} 
+                />
+              </div>
+
               <div>
                 <button onClick={() => saveEdit(a.id)}>Save</button>
                 <button onClick={cancelEdit} style={{ marginLeft: 8 }}>Cancel</button>
