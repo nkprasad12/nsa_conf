@@ -1,0 +1,22 @@
+/* Ensure the scheduler fills its parent */
+.schedule-container {
+  height: 90vh;
+  width: 100%;
+}
+
+/* Force-hide columns that fall outside the conference window [1, 5] */
+.my-hidden-column {
+  display: none!important;
+}
+
+/* Optional: Ensure the internal tables treat widths as fluid [13, 14] */
+.conference-schedule.e-date-header-wrap table,
+.conference-schedule.e-content-wrap table {
+  table-layout: fixed; /* Keep fixed for performance, but widths are % via JS */
+  width: 100%!important;
+}
+
+/* Highlight "Today" if it falls within the conference  */
+.conference-schedule.e-today-update {
+  background-color: #e3f2fd!important;
+}
