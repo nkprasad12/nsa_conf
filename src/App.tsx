@@ -4,7 +4,7 @@ import CalendarView from './CalendarView';
 import Settings from './Settings';
 import { useAuth } from './AuthContext';
 import { db } from './firebase';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { canEdit, PermissibleItem } from './permissions';
 
 const TABS = [
@@ -17,6 +17,7 @@ interface Announcement extends PermissibleItem {
   id: string;
   title: string;
   body: string;
+  createdAt?: any;
 }
 
 function Announcements({ announcements, user, isAdmin, groups }: {
@@ -27,6 +28,8 @@ function Announcements({ announcements, user, isAdmin, groups }: {
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<{ title: string; body: string }>({ title: '', body: '' });
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [newAnnouncement, setNewAnnouncement] = React.useState({ title: '', body: '' });
 
   function startEdit(a: Announcement) {
     setEditingId(a.id);
@@ -47,6 +50,39 @@ function Announcements({ announcements, user, isAdmin, groups }: {
     }
   }
 
+  async function deleteAnnouncement(id: string) {
+    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    try {
+      await deleteDoc(doc(db, 'announcements', id));
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      alert('Failed to delete. You might not have permission.');
+    }
+  }
+
+  async function handleAddAnnouncement() {
+    if (!newAnnouncement.title || !newAnnouncement.body) {
+      alert('Please fill in both title and body.');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'announcements'), {
+        title: newAnnouncement.title,
+        body: newAnnouncement.body,
+        ownerId: user.uid,
+        allowedEditors: [],
+        allowedGroups: [],
+        createdAt: serverTimestamp()
+      });
+      setNewAnnouncement({ title: '', body: '' });
+      setIsAdding(false);
+    } catch (error) {
+      console.error('Error adding announcement:', error);
+      alert('Failed to add announcement. You might not have permission.');
+    }
+  }
+
   function cancelEdit() {
     setEditingId(null);
   }
@@ -55,6 +91,37 @@ function Announcements({ announcements, user, isAdmin, groups }: {
 
   return (
     <div className="announcements">
+      {isAdmin && !isAdding && (
+        <button 
+          onClick={() => setIsAdding(true)} 
+          style={{ marginBottom: 20, padding: '8px 16px', backgroundColor: '#646cff', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+        >
+          + New Announcement
+        </button>
+      )}
+
+      {isAdding && (
+        <div className="announcement" style={{ border: '2px dashed #646cff', padding: 16, marginBottom: 20 }}>
+          <h3>New Announcement</h3>
+          <input 
+            placeholder="Title" 
+            value={newAnnouncement.title} 
+            onChange={e => setNewAnnouncement(prev => ({ ...prev, title: e.target.value }))} 
+            style={{ width: '100%', marginBottom: 8, padding: 8 }} 
+          />
+          <textarea 
+            placeholder="Body" 
+            value={newAnnouncement.body} 
+            onChange={e => setNewAnnouncement(prev => ({ ...prev, body: e.target.value }))} 
+            style={{ width: '100%', minHeight: 100, marginBottom: 8, padding: 8 }} 
+          />
+          <div>
+            <button onClick={handleAddAnnouncement}>Post Announcement</button>
+            <button onClick={() => setIsAdding(false)} style={{ marginLeft: 8 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {announcements.map(a => (
         <div key={a.id} className="announcement">
           {editingId === a.id ? (
@@ -69,7 +136,12 @@ function Announcements({ announcements, user, isAdmin, groups }: {
           ) : (
             <>
               <h3 style={{ display: 'inline-block', marginRight: 8 }}>{a.title}</h3>
-              {canEdit(a, authInfo) && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
+              {canEdit(a, authInfo) && (
+                <div style={{ display: 'inline-block' }}>
+                  <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>
+                  <button onClick={() => deleteAnnouncement(a.id)} style={{ marginLeft: 8, backgroundColor: '#ff4d4f', color: 'white' }}>Delete</button>
+                </div>
+              )}
               <p>{a.body}</p>
             </>
           )}
@@ -85,7 +157,8 @@ export default function App(): React.ReactElement {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'announcements'), (snapshot) => {
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
