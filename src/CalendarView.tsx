@@ -23,11 +23,12 @@ interface EventDetailsProps {
   user: any;
   isAdmin: boolean;
   groups: string[];
+  userLookup: Record<string, { email?: string; displayName?: string }>;
   onSave?: (updated: CalendarEvent) => void;
   onDelete?: (id: string) => void;
 }
 
-function EventDetails({ event, onClose, user, isAdmin, groups, onSave, onDelete }: EventDetailsProps) {
+function EventDetails({ event, onClose, user, isAdmin, groups, userLookup, onSave, onDelete }: EventDetailsProps) {
   const { title, start, description, location, allowedEditors, allowedGroups } = event;
   if (!title && !start) return null;
 
@@ -157,6 +158,9 @@ function EventDetails({ event, onClose, user, isAdmin, groups, onSave, onDelete 
                   style={{ width: '100%' }} 
                   placeholder="e.g. uid1, uid2"
                 />
+                <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                  Resolved: {(draft.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
+                </div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Allowed Groups (comma separated)</label>
@@ -186,7 +190,7 @@ function EventDetails({ event, onClose, user, isAdmin, groups, onSave, onDelete 
             {(allowedEditors?.length || allowedGroups?.length) ? (
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #eee', fontSize: 12, color: '#666' }}>
                 {allowedEditors && allowedEditors.length > 0 && (
-                  <div><strong>Editors:</strong> {allowedEditors.join(', ')}</div>
+                  <div><strong>Editors:</strong> {allowedEditors.map(uid => userLookup[uid]?.email || uid).join(', ')}</div>
                 )}
                 {allowedGroups && allowedGroups.length > 0 && (
                   <div><strong>Groups:</strong> {allowedGroups.join(', ')}</div>
@@ -200,7 +204,7 @@ function EventDetails({ event, onClose, user, isAdmin, groups, onSave, onDelete 
   );
 }
 
-export default function CalendarView(): React.ReactElement {
+export default function CalendarView({ userLookup = {} }: { userLookup?: Record<string, { email?: string; displayName?: string }> }): React.ReactElement {
   const { user, isAdmin, groups } = useAuth();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -390,6 +394,9 @@ export default function CalendarView(): React.ReactElement {
                 style={{ width: '100%', padding: 8 }} 
                 placeholder="e.g. uid1, uid2"
               />
+              <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
+                Resolved: {(newEvent.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
+              </div>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Allowed Groups (comma separated)</label>
@@ -415,6 +422,7 @@ export default function CalendarView(): React.ReactElement {
           user={user}
           isAdmin={isAdmin}
           groups={groups}
+          userLookup={userLookup}
           onSave={handleSaveEvent}
           onDelete={handleDeleteEvent}
         />

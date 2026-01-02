@@ -21,11 +21,12 @@ interface Announcement extends PermissibleItem {
   createdAt?: any;
 }
 
-function Announcements({ announcements, user, isAdmin, groups }: {
+function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
   announcements: Announcement[];
   user: any;
   isAdmin: boolean;
   groups: string[];
+  userLookup: Record<string, { email?: string; displayName?: string }>;
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<{ title: string; body: string; allowedEditors: string[]; allowedGroups: string[] }>({ 
@@ -142,10 +143,13 @@ function Announcements({ announcements, user, isAdmin, groups }: {
             <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
             <input 
               placeholder="e.g. uid1, uid2"
-              value={newAnnouncement.allowedEditors.join(', ')} 
+              value={(newAnnouncement.allowedEditors || []).join(', ')} 
               onChange={e => setNewAnnouncement(prev => ({ ...prev, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
               style={{ width: '100%', padding: 8 }} 
             />
+            <div style={{ fontSize: '0.7em', color: '#666', marginTop: 4 }}>
+              Resolved: {(newAnnouncement.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
+            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
@@ -173,12 +177,15 @@ function Announcements({ announcements, user, isAdmin, groups }: {
               <textarea value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} style={{ width: '100%', minHeight: 100, marginBottom: 8 }} />
               
               <div style={{ marginBottom: 8 }}>
-                <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs, comma separated)</label>
+                <label style={{ display: 'block', fontSize: '0.8em', marginBottom: 4 }}>Allowed Editors (UIDs or Emails, comma separated)</label>
                 <input 
                   value={(draft.allowedEditors || []).join(', ')} 
                   onChange={e => setDraft(d => ({ ...d, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                   style={{ width: '100%', padding: 8 }} 
                 />
+                <div style={{ fontSize: '0.7em', color: '#666', marginTop: 4 }}>
+                  Resolved: {(draft.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
+                </div>
               </div>
 
               <div style={{ marginBottom: 16 }}>
@@ -215,6 +222,7 @@ function Announcements({ announcements, user, isAdmin, groups }: {
 
 export default function App(): React.ReactElement {
   const { user, isAdmin, groups } = useAuth();
+  const [userLookup, setUserLookup] = useState<Record<string, { email?: string; displayName?: string }>>({});
   
   const availableTabs = React.useMemo(() => {
     const tabs = [...TABS];
@@ -241,6 +249,20 @@ export default function App(): React.ReactElement {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    // Fetch roles to resolve UIDs to names/emails
+    const unsubscribe = onSnapshot(collection(db, 'roles'), (snapshot) => {
+      const lookup: Record<string, { email?: string; displayName?: string }> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        lookup[doc.id] = { email: data.email, displayName: data.displayName };
+      });
+      setUserLookup(lookup);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="app-container">
       <h1 className="app-title">NSA Conference Portal</h1>
@@ -257,9 +279,15 @@ export default function App(): React.ReactElement {
       </div>
       <div className="tab-content">
         {activeTab === 'announcements' && (
-          <Announcements announcements={announcements} user={user} isAdmin={isAdmin} groups={groups} />
+          <Announcements 
+            announcements={announcements} 
+            user={user} 
+            isAdmin={isAdmin} 
+            groups={groups} 
+            userLookup={userLookup}
+          />
         )}
-        {activeTab === 'calendar' && <CalendarView />}
+        {activeTab === 'calendar' && <CalendarView userLookup={userLookup} />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'settings' && (
           <Settings />

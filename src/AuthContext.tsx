@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
 interface AuthContextType {
@@ -26,9 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(firebaseUser);
       
       if (firebaseUser) {
-        // Check if user has admin role and groups in Firestore
+        // Update user info and check roles
         try {
-          const roleDoc = await getDoc(doc(db, 'roles', firebaseUser.uid));
+          const roleRef = doc(db, 'roles', firebaseUser.uid);
+          
+          // Save/Update basic user info for readability in admin panel
+          await setDoc(roleRef, {
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            lastSeen: new Date().toISOString()
+          }, { merge: true });
+
+          const roleDoc = await getDoc(roleRef);
           if (roleDoc.exists()) {
             const data = roleDoc.data();
             setIsAdmin(data?.isAdmin === true);

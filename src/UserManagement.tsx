@@ -6,6 +6,8 @@ interface UserRole {
   id: string; // This is the UID
   isAdmin: boolean;
   groups: string[];
+  email?: string;
+  displayName?: string;
 }
 
 export default function UserManagement() {
@@ -116,6 +118,7 @@ export default function UserManagement() {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+            <th style={{ padding: 12 }}>User</th>
             <th style={{ padding: 12 }}>UID</th>
             <th style={{ padding: 12 }}>Admin</th>
             <th style={{ padding: 12 }}>Groups</th>
@@ -125,7 +128,11 @@ export default function UserManagement() {
         <tbody>
           {users.map(u => (
             <tr key={u.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: 12, fontSize: 12, fontFamily: 'monospace' }}>{u.id}</td>
+              <td style={{ padding: 12 }}>
+                <div style={{ fontWeight: 'bold' }}>{u.displayName || 'Unknown'}</div>
+                <div style={{ fontSize: '0.8em', color: '#666' }}>{u.email || 'No email'}</div>
+              </td>
+              <td style={{ padding: 12, fontSize: 10, fontFamily: 'monospace', color: '#888' }}>{u.id}</td>
               <td style={{ padding: 12 }}>
                 <input 
                   type="checkbox" 
