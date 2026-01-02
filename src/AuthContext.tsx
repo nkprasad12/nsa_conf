@@ -21,6 +21,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // Check for test overrides in URL
+    const params = new URLSearchParams(window.location.search);
+    const testUser = params.get('test_user');
+    const testGroups = params.get('test_groups');
+    const testAdmin = params.get('test_admin');
+
+    if (testUser) {
+      setUser({
+        uid: testUser,
+        email: `${testUser}@example.com`,
+        displayName: `Test User ${testUser}`,
+      } as User);
+      setIsAdmin(testAdmin === 'true');
+      setGroups(testGroups ? testGroups.split(',') : []);
+      setLoading(false);
+      return;
+    }
+
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);

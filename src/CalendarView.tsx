@@ -226,6 +226,22 @@ export default function CalendarView({ userLookup = {} }: { userLookup?: Record<
   });
 
   useEffect(() => {
+    // Check for test data override
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('test_data') === 'true') {
+      setEvents([
+        {
+          id: 'event-a',
+          title: 'Calendar Event A',
+          start: new Date().toISOString().slice(0, 10),
+          description: 'Test Event',
+          allowedGroups: ['group1'],
+          ownerId: 'admin-uid'
+        }
+      ]);
+      return;
+    }
+
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
