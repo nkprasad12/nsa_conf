@@ -50,20 +50,29 @@ Create a `roles` collection to manage admin users:
 
 ### 6. Configure Firestore Security Rules
 
-Replace the default Firestore rules with these to enforce ACLs:
+Replace the default Firestore rules with these to enforce fine-grained ACLs:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is admin
+    // Helper function to check if user is a global admin
     function isAdmin() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.isAdmin == true;
     }
+
+    // Helper function to check if user can edit a specific document
+    function canEdit(data) {
+      return isAdmin() || 
+             (request.auth != null && (
+               data.ownerId == request.auth.uid ||
+               request.auth.uid in data.allowedEditors ||
+               get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.groups.hasAny(data.allowedGroups)
+             ));
+    }
     
-    // Roles collection - only admins can read/write
+    // Roles collection - users can read their own, only admins can write
     match /roles/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if isAdmin();
@@ -71,14 +80,14 @@ service cloud.firestore {
     
     // Announcements collection
     match /announcements/{announcementId} {
-      allow read: if true; // Anyone can read (including unauthenticated)
-      allow write: if isAdmin(); // Only admins can create/update/delete
+      allow read: if true; // Public read
+      allow write: if canEdit(resource.data) || (request.method == 'create' && canEdit(request.resource.data));
     }
     
     // Events collection
     match /events/{eventId} {
-      allow read: if true; // Anyone can read (including unauthenticated)
-      allow write: if isAdmin(); // Only admins can create/update/delete
+      allow read: if true; // Public read
+      allow write: if canEdit(resource.data) || (request.method == 'create' && canEdit(request.resource.data));
     }
   }
 }
@@ -88,16 +97,18 @@ service cloud.firestore {
 
 ### Authentication Flow
 
-1. **Unauthenticated Users**: Can view all content but cannot edit anything
-2. **Authenticated Non-Admin Users**: Can sign in with Google but still cannot edit
-3. **Admin Users**: Can sign in and edit announcements/calendar events
+1. **Unauthenticated Users**: Can view all content but cannot edit anything.
+2. **Authenticated Users**: Can sign in with Google. Their permissions depend on their role and the specific content.
+3. **Admin Users**: Global admins can edit any content.
 
-### Role Checking
+### Fine-Grained Permissions
 
-- The `AuthContext` provider listens to Firebase auth state changes
-- When a user signs in, it queries the `roles/{uid}` document in Firestore
-- The `isAdmin` boolean from that document determines edit permissions
-- Components use the `useAuth()` hook to access `isAdmin` status
+Each piece of content (announcement or event) can have:
+- `ownerId`: The UID of the user who owns/created the item.
+- `allowedEditors`: An array of UIDs who are specifically allowed to edit this item.
+- `allowedGroups`: An array of group names. Any user belonging to one of these groups can edit the item.
+
+The `canEdit` utility in the frontend and the Firestore Security Rules both enforce these checks.
 
 ### UI Changes
 

@@ -1,35 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventApi } from '@fullcalendar/core';
+import { db } from './firebase';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
+import { canEdit, PermissibleItem } from './permissions';
 // NOTE: CSS for FullCalendar is loaded from index.html via CDN links
 
-type SampleEvent = {
+interface CalendarEvent extends PermissibleItem {
   id: string;
   title: string;
   start: string;
   description?: string;
   location?: string;
-};
-
-const sampleEvents: SampleEvent[] = [
-  { id: '1', title: 'Opening Keynote', start: new Date().toISOString().slice(0,10), description: 'Hear from our opening speaker about the state of security.' },
-  { id: '2', title: 'Networking Lunch', start: new Date(Date.now() + 1000*60*60*24).toISOString().slice(0,10), description: 'Casual lunch and networking with peers.' },
-  { id: '3', title: 'Workshop: Security', start: new Date(Date.now() + 2*1000*60*60*24).toISOString().slice(0,10), description: 'Hands-on workshop covering modern security practices.' }
-];
-
-interface EventDetailsProps {
-  title: string;
-  start: string;
-  description?: string;
-  location?: string;
-  onClose: () => void;
-  isAdmin?: boolean;
-  onSave?: (updated: SampleEvent) => void;
 }
 
-function EventDetails({ title, start, description, location, onClose, isAdmin = false, onSave }: EventDetailsProps) {
+interface EventDetailsProps {
+  event: CalendarEvent;
+  onClose: () => void;
+  user: any;
+  isAdmin: boolean;
+  groups: string[];
+  onSave?: (updated: CalendarEvent) => void;
+}
+
+function EventDetails({ event, onClose, user, isAdmin, groups, onSave }: EventDetailsProps) {
+  const { title, start, description, location } = event;
   if (!title && !start) return null;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -63,10 +61,9 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
     setIsEditing(true);
   }
 
-  function save() {
+  async function save() {
     if (onSave) {
-      // Build minimal payload — id will be filled by parent if needed
-      onSave({ id: '', title: draft.title, start: draft.start, description: draft.description, location: draft.location });
+      await onSave({ ...event, title: draft.title, start: draft.start, description: draft.description, location: draft.location });
     }
     setIsEditing(false);
     onClose();
@@ -76,13 +73,15 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
     setIsEditing(false);
   }
 
+  const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
+
   return (
     <div style={overlayStyle} onClick={onClose} role="dialog" aria-modal="true">
       <div style={boxStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <h3 style={{ margin: 0, color: '#213547' }}>{title}</h3>
           <div>
-            {isAdmin && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
+            {canEdit(event, authInfo) && !isEditing && <button onClick={startEdit} style={{ marginRight: 8 }}>Edit</button>}
             <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' }}>✕</button>
           </div>
         </div>
@@ -122,9 +121,22 @@ function EventDetails({ title, start, description, location, onClose, isAdmin = 
   );
 }
 
-export default function CalendarView({ isAdmin }: { isAdmin: boolean }): React.ReactElement {
-  const [selectedEvent, setSelectedEvent] = useState<SampleEvent | null>(null);
-  const [events, setEvents] = useState<SampleEvent[]>(() => sampleEvents);
+export default function CalendarView(): React.ReactElement {
+  const { user, isAdmin, groups } = useAuth();
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as CalendarEvent[];
+      setEvents(data);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // compute unique event dates (YYYY-MM-DD), sorted
   const uniqueDates = useMemo(() => {
@@ -141,22 +153,33 @@ export default function CalendarView({ isAdmin }: { isAdmin: boolean }): React.R
 
   function handleEventClick(info: any) {
     const e: EventApi = info.event as EventApi;
-    const payload: SampleEvent = {
+    const payload: CalendarEvent = {
       id: e.id,
       title: e.title,
       start: e.startStr || (e.start ? e.start.toISOString().slice(0,10) : ''),
       description: (e.extendedProps && (e.extendedProps as any).description) || undefined,
       location: (e.extendedProps && (e.extendedProps as any).location) || undefined,
+      ownerId: (e.extendedProps && (e.extendedProps as any).ownerId) || undefined,
+      allowedEditors: (e.extendedProps && (e.extendedProps as any).allowedEditors) || undefined,
+      allowedGroups: (e.extendedProps && (e.extendedProps as any).allowedGroups) || undefined,
     };
     setSelectedEvent(payload);
   }
 
-  function handleSaveEvent(updated: SampleEvent) {
-    // updated.id may be empty when coming from EventDetails save; use selectedEvent id
-    const id = selectedEvent ? selectedEvent.id : updated.id;
-    const merged: SampleEvent = { ...updated, id };
-    setEvents(prev => prev.map(ev => (ev.id === id ? { ...ev, ...merged } : ev)));
-    setSelectedEvent(merged);
+  async function handleSaveEvent(updated: CalendarEvent) {
+    try {
+      const eventRef = doc(db, 'events', updated.id);
+      await updateDoc(eventRef, {
+        title: updated.title,
+        start: updated.start,
+        description: updated.description || '',
+        location: updated.location || ''
+      });
+      setSelectedEvent(updated);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      alert('Failed to save changes. You might not have permission.');
+    }
   }
 
   // If there are 1-3 unique event days, create a compact multi-day view limited to those days
@@ -171,16 +194,16 @@ export default function CalendarView({ isAdmin }: { isAdmin: boolean }): React.R
     const set = new Set(uniqueDates);
     return events.filter(ev => set.has((ev.start || '').slice(0, 10)));
   }, [events, useCompactMultiDay, uniqueDates]);
+
   return (
     <>
       {selectedEvent && (
         <EventDetails
-          title={selectedEvent.title}
-          start={selectedEvent.start}
-          description={selectedEvent.description}
-          location={selectedEvent.location}
+          event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          user={user}
           isAdmin={isAdmin}
+          groups={groups}
           onSave={handleSaveEvent}
         />
       )}

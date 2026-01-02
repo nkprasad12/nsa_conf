@@ -3,6 +3,9 @@ import './App.css';
 import CalendarView from './CalendarView';
 import Settings from './Settings';
 import { useAuth } from './AuthContext';
+import { db } from './firebase';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { canEdit, PermissibleItem } from './permissions';
 
 const TABS = [
   { label: 'Announcements', key: 'announcements' },
@@ -10,33 +13,45 @@ const TABS = [
   { label: 'Settings', key: 'settings' },
 ] as const;
 
-const fakeAnnouncements = [
-  { id: 1, title: 'Welcome to NSA Conf!', body: 'Conference starts next week. Get ready!' },
-  { id: 2, title: 'Schedule Released', body: 'Check out the full schedule on our website.' },
-  { id: 3, title: 'Keynote Speaker', body: 'Dr. Jane Doe will deliver the keynote address.' },
-];
+interface Announcement extends PermissibleItem {
+  id: string;
+  title: string;
+  body: string;
+}
 
-function Announcements({ announcements, setAnnouncements, isAdmin }: {
-  announcements: { id: number; title: string; body: string }[];
-  setAnnouncements: React.Dispatch<React.SetStateAction<{ id: number; title: string; body: string }[]>>;
+function Announcements({ announcements, user, isAdmin, groups }: {
+  announcements: Announcement[];
+  user: any;
   isAdmin: boolean;
+  groups: string[];
 }) {
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<{ title: string; body: string }>({ title: '', body: '' });
 
-  function startEdit(a: { id: number; title: string; body: string }) {
+  function startEdit(a: Announcement) {
     setEditingId(a.id);
     setDraft({ title: a.title, body: a.body });
   }
 
-  function saveEdit(id: number) {
-    setAnnouncements(prev => prev.map(p => (p.id === id ? { ...p, title: draft.title, body: draft.body } : p)));
-    setEditingId(null);
+  async function saveEdit(id: string) {
+    try {
+      const announcementRef = doc(db, 'announcements', id);
+      await updateDoc(announcementRef, {
+        title: draft.title,
+        body: draft.body
+      });
+      setEditingId(null);
+    } catch (error) {
+      console.error('Error updating announcement:', error);
+      alert('Failed to save changes. You might not have permission.');
+    }
   }
 
   function cancelEdit() {
     setEditingId(null);
   }
+
+  const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
 
   return (
     <div className="announcements">
@@ -44,17 +59,17 @@ function Announcements({ announcements, setAnnouncements, isAdmin }: {
         <div key={a.id} className="announcement">
           {editingId === a.id ? (
             <div>
-              <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
-              <textarea value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} />
+              <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} style={{ width: '100%', marginBottom: 8 }} />
+              <textarea value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} style={{ width: '100%', minHeight: 100, marginBottom: 8 }} />
               <div>
                 <button onClick={() => saveEdit(a.id)}>Save</button>
-                <button onClick={cancelEdit}>Cancel</button>
+                <button onClick={cancelEdit} style={{ marginLeft: 8 }}>Cancel</button>
               </div>
             </div>
           ) : (
             <>
               <h3 style={{ display: 'inline-block', marginRight: 8 }}>{a.title}</h3>
-              {isAdmin && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
+              {canEdit(a, authInfo) && <button onClick={() => startEdit(a)} style={{ marginLeft: 8 }}>Edit</button>}
               <p>{a.body}</p>
             </>
           )}
@@ -66,8 +81,20 @@ function Announcements({ announcements, setAnnouncements, isAdmin }: {
 
 export default function App(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['key']>(TABS[0].key);
-  const { isAdmin } = useAuth();
-  const [announcements, setAnnouncements] = useState(() => fakeAnnouncements);
+  const { user, isAdmin, groups } = useAuth();
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'announcements'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Announcement[];
+      setAnnouncements(data);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="app-container">
@@ -85,9 +112,9 @@ export default function App(): React.ReactElement {
       </div>
       <div className="tab-content">
         {activeTab === 'announcements' && (
-          <Announcements announcements={announcements} setAnnouncements={setAnnouncements} isAdmin={isAdmin} />
+          <Announcements announcements={announcements} user={user} isAdmin={isAdmin} groups={groups} />
         )}
-        {activeTab === 'calendar' && <CalendarView isAdmin={isAdmin} />}
+        {activeTab === 'calendar' && <CalendarView />}
         {activeTab === 'settings' && (
           <Settings />
         )}

@@ -6,6 +6,7 @@ import { auth, db } from './firebase';
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  groups: string[];
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [groups, setGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -24,21 +26,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(firebaseUser);
       
       if (firebaseUser) {
-        // Check if user has admin role in Firestore
+        // Check if user has admin role and groups in Firestore
         try {
           const roleDoc = await getDoc(doc(db, 'roles', firebaseUser.uid));
           if (roleDoc.exists()) {
-            setIsAdmin(roleDoc.data()?.isAdmin === true);
+            const data = roleDoc.data();
+            setIsAdmin(data?.isAdmin === true);
+            setGroups(data?.groups || []);
           } else {
             setIsAdmin(false);
+            setGroups([]);
           }
         } catch (error) {
           console.error('Error fetching user role:', error);
           setIsAdmin(false);
+          setGroups([]);
         }
       } else {
         // User is not logged in
         setIsAdmin(false);
+        setGroups([]);
       }
       
       setLoading(false);
@@ -69,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     isAdmin,
+    groups,
     loading,
     signInWithGoogle,
     logout,
