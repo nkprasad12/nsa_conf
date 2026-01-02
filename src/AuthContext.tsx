@@ -28,6 +28,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         // Update user info and check roles
         try {
+          // Save/Update basic user info in 'users' collection
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          await setDoc(userRef, {
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            lastLogin: new Date().toISOString()
+          }, { merge: true });
+
           const roleRef = doc(db, 'roles', firebaseUser.uid);
           
           // Save/Update basic user info for readability in admin panel

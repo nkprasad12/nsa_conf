@@ -35,7 +35,14 @@ This project now uses Firebase Authentication and Firestore for Access Control L
 
 ### 5. Set Up Firestore Collections
 
-Create a `roles` collection to manage admin users:
+The app automatically creates/updates documents in the following collections:
+
+1.  **`users`**: Stores basic profile information for every user who signs in.
+    -   Fields: `email`, `displayName`, `photoURL`, `lastLogin`
+2.  **`roles`**: Manages admin privileges and group memberships.
+    -   Fields: `isAdmin` (boolean), `groups` (array of strings), `email`, `displayName`, `lastSeen`
+
+To set up your first admin user:
 
 1. In Firestore Database, click **Start collection**
 2. Collection ID: `roles`
@@ -76,6 +83,12 @@ service cloud.firestore {
     match /roles/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow write: if isAdmin();
+    }
+
+    // Users collection - users can read and write their own profile, admins can read all
+    match /users/{userId} {
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Announcements collection

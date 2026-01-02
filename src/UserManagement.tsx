@@ -11,27 +11,54 @@ interface UserRole {
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<UserRole[]>([]);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [rolesMap, setRolesMap] = useState<Record<string, any>>({});
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ uid: '', isAdmin: false, groups: '' });
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'roles'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as UserRole[];
-      setUsers(data);
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setUsersList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => unsubscribe();
+
+    const unsubscribeRoles = onSnapshot(collection(db, 'roles'), (snapshot) => {
+      const roles: Record<string, any> = {};
+      snapshot.docs.forEach(doc => {
+        roles[doc.id] = doc.data();
+      });
+      setRolesMap(roles);
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeRoles();
+    };
   }, []);
+
+  // Merge users and roles
+  const allUserIds = Array.from(new Set([
+    ...usersList.map(u => u.id),
+    ...Object.keys(rolesMap)
+  ]));
+
+  const mergedUsers: UserRole[] = allUserIds.map(id => {
+    const userDoc = usersList.find(u => u.id === id) || {};
+    const roleDoc = rolesMap[id] || {};
+    return {
+      id,
+      email: userDoc.email || roleDoc.email,
+      displayName: userDoc.displayName || roleDoc.displayName,
+      isAdmin: roleDoc.isAdmin || false,
+      groups: roleDoc.groups || [],
+    };
+  });
 
   async function handleUpdateUser(uid: string, isAdmin: boolean, groups: string[]) {
     try {
-      await updateDoc(doc(db, 'roles', uid), {
+      await setDoc(doc(db, 'roles', uid), {
         isAdmin,
         groups
-      });
+      }, { merge: true });
     } catch (error) {
       console.error('Error updating user:', error);
       alert('Failed to update user.');
@@ -126,7 +153,7 @@ export default function UserManagement() {
           </tr>
         </thead>
         <tbody>
-          {users.map(u => (
+          {mergedUsers.map(u => (
             <tr key={u.id} style={{ borderBottom: '1px solid #eee' }}>
               <td style={{ padding: 12 }}>
                 <div style={{ fontWeight: 'bold' }}>{u.displayName || 'Unknown'}</div>
