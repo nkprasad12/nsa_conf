@@ -3,28 +3,28 @@ import { ScheduleComponent, Day, Week, WorkWeek, Month, Agenda, Inject, ViewsDir
 import { sampleData } from './data';
 import './index.css'; 
 
+const conferenceStartDate = new Date(2025, 11, 30);
+const conferenceEndDate = new Date(2026, 0, 4, 23, 59, 59);
+
+// Dynamically calculate work days based on the range
+const getConferenceWorkDays = (start, end) => {
+  const days = new Set();
+  let current = new Date(start.getTime());
+  while (current <= end) {
+    days.add(current.getDay());
+    current.setDate(current.getDate() + 1);
+  }
+  return Array.from(days);
+};
+
+const conferenceWorkDays = getConferenceWorkDays(conferenceStartDate, conferenceEndDate);
+
 export default function App() {
   const scheduleRef = useRef(null);
 
-  const conferenceStartDate = new Date(2025, 11, 30);
-  const conferenceEndDate = new Date(2026, 0, 4, 23, 59, 59);
-
   // Create state to control the view and the date
-const [view, setView] = useState('Day');
-const [currentDate, setCurrentDate] = useState(conferenceStartDate);
+  const [view, setView] = useState('Day');
 
-  // Dynamically calculate work days based on the range
-  const getConferenceWorkDays = (start, end) => {
-    const days = new Set();
-    let current = new Date(start.getTime());
-    while (current <= end) {
-      days.add(current.getDay());
-      current.setDate(current.getDate() + 1);
-    }
-    return Array.from(days);
-  };
-
-  const conferenceWorkDays = getConferenceWorkDays(conferenceStartDate, conferenceEndDate);
 
   // 1. Re-added Logic to manually tag "Today" cells for the CSS to pick up
   const onDataBound = () => {
@@ -53,6 +53,30 @@ const [currentDate, setCurrentDate] = useState(conferenceStartDate);
   };
 
 const onActionComplete = (args) => {
+  if (args.requestType === 'viewNavigate') {
+    const scheduleObj = scheduleRef.current;
+    if (scheduleObj) {
+      const currentView = scheduleObj.currentView;
+      setView(currentView);
+
+      // Enforce date reset logic after view change
+      let targetDate = null;
+      if (currentView === 'full-schedule') {
+        targetDate = conferenceStartDate;
+      } else if (currentView === 'single-day' || currentView === 'Day') {
+        const today = new Date();
+        targetDate = (today >= conferenceStartDate && today <= conferenceEndDate) ? today : conferenceStartDate;
+      }
+
+      if (targetDate) {
+        // Only update if the date is actually different to avoid unnecessary re-renders
+        if (scheduleObj.selectedDate.toDateString() !== targetDate.toDateString()) {
+          scheduleObj.selectedDate = targetDate;
+        }
+      }
+    }
+  }
+
   if (args.requestType === 'viewNavigate' || args.requestType === 'dateNavigate') {
     const scheduleObj = scheduleRef.current;
     if (!scheduleObj) return;
@@ -90,34 +114,9 @@ const onActionComplete = (args) => {
   );
 };
 
-const onNavigating = (args) => {
-  if (args.action === 'view') {
-    const target = args.viewName || args.currentView;
-    setView(target); 
-
-    if (target === 'single-day' || target === 'Day') {
-      const today = new Date();
-      if (today >= conferenceStartDate && today <= conferenceEndDate) {
-        // 1. Force the internal scheduler property immediately
-        args.currentDate = today; 
-        
-        // 2. Directly update the ref to bypass the state-render delay
-        if (scheduleRef.current) {
-          scheduleRef.current.selectedDate = today;
-        }
-
-        // 3. Keep React state in sync
-        setCurrentDate(today);
-      }
-    } else if (target === 'full-schedule') {
-      args.currentDate = conferenceStartDate;
-      if (scheduleRef.current) {
-        scheduleRef.current.selectedDate = conferenceStartDate;
-      }
-      setCurrentDate(conferenceStartDate);
-    }
-  } else if (args.action === 'date') {
-    setCurrentDate(args.currentDate);
+const onActionBegin = (args) => {
+  if (args.requestType === 'viewNavigate') {
+    // Logic moved to onActionComplete for reliability
   }
 };
 
@@ -133,7 +132,7 @@ const conferenceLength = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         ref={scheduleRef}
         width='100%'
         height='100%'
-        selectedDate={currentDate}
+        selectedDate={conferenceStartDate}
         currentView={view}
         minDate={conferenceStartDate}
         maxDate={conferenceEndDate}
@@ -141,7 +140,7 @@ const conferenceLength = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         allowDragAndDrop={true}
         allowResizing={true}
         allowMultiCellSelection={true}
-        navigating={onNavigating}
+        actionBegin={onActionBegin}
         eventSettings={{ 
           dataSource: sampleData,
           template: eventTemplate
