@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import CalendarView from './CalendarView';
+import BrettCalendarView from './BrettCalendarView';
 import Settings from './Settings';
 import UserManagement from './UserManagement';
 import { useAuth } from './AuthContext';
@@ -289,7 +290,7 @@ export default function App(): React.ReactElement {
           />
         )}
         {activeTab === 'calendar' && <CalendarView userLookup={userLookup} />}
-        {activeTab === 'brett-calendar' && <CalendarView userLookup={userLookup} />}
+        {activeTab === 'brett-calendar' && <BrettCalendarView />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'settings' && (
           <Settings />

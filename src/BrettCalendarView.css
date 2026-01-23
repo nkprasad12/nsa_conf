@@ -1,0 +1,96 @@
+/* Essential Syncfusion Framework Styles (Material Theme) */
+/* We'll import these in the component or index.css if needed, 
+   but for now we'll put them in the main CSS or import here */
+
+/* Note: In a real project, you might import these in main.tsx or index.css 
+   to avoid duplicating them if you have multiple Syncfusion components. */
+
+@import '../node_modules/@syncfusion/ej2-base/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-buttons/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-popups/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-calendars/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-dropdowns/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-inputs/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-navigations/styles/material.css';
+@import '../node_modules/@syncfusion/ej2-react-schedule/styles/material.css';
+
+.schedule-container {
+  height: 90vh;
+  width: 100%;
+}
+
+/* Force-hide columns that fall outside the conference window */
+.my-hidden-column {
+  display: none !important;
+}
+
+.conference-schedule.e-date-header-wrap table,
+.conference-schedule.e-content-wrap table {
+  table-layout: fixed;
+  width: 100% !important;
+}
+
+.conference-schedule.e-today-update {
+  background-color: #e3f2fd !important;
+}
+
+/* "Today" Highlighting: Header (Day and Date) */
+.e-schedule .e-header-cells.e-today,
+.e-schedule .e-header-cells.e-current-day,
+.e-schedule .e-header-cells.my-today-header {
+  background-color: rgba(3, 169, 244, 0.05) !important;
+  box-shadow: inset 0 -4px 0 rgba(3, 169, 244, 0.5) !important;
+}
+
+.e-schedule .e-header-date.e-today,
+.e-schedule .e-header-day.e-today {
+  color: #03a9f4 !important;
+  font-weight: bold !important;
+}
+
+.e-schedule .e-work-cells.e-today,
+.e-schedule .e-work-cells.e-current-day,
+.e-schedule .e-work-cells.my-today-col,
+.e-schedule .e-all-day-cells.e-today,
+.e-schedule .e-all-day-cells.my-today-col {
+  background-color: rgba(3, 169, 244, 0.08) !important;
+}
+
+/* Appointment Card Styling Enhancements */
+.e-schedule .e-appointment {
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  background: #ffffff !important; 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  padding-left: 10px !important;
+  transition: transform 0.2s ease;
+}
+
+.e-schedule .e-appointment::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background-color: #03a9f4 !important;
+  border-radius: 8px 0 0 8px;
+}
+
+.e-schedule .e-appointment .template-wrap .subject {
+  color: #111827 !important;
+  font-size: 13px !important;
+  display: block;
+}
+
+.e-schedule .e-appointment .template-wrap .time {
+  color: #4b5563 !important;
+  font-weight: 500 !important;
+  display: block;
+}
+
+.e-schedule .e-appointment:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  background-color: #f9fafb !important;
+}
