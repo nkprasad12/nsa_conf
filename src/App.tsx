@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import CalendarView from './CalendarView';
-import BrettCalendarView from './BrettCalendarView';
+import CalendarV2View from './CalendarV2';
 import Settings from './Settings';
 import UserManagement from './UserManagement';
 import { useAuth } from './AuthContext';
@@ -12,7 +12,7 @@ import { canEdit, PermissibleItem } from './permissions';
 const TABS = [
   { label: 'Announcements', key: 'announcements' },
   { label: 'Calendar', key: 'calendar' },
-  { label: 'Brett Calendar', key: 'brett-calendar' },
+  { label: 'Calendar V2', key: 'calendar-v2' },
   { label: 'Settings', key: 'settings' },
 ] as const;
 
@@ -290,7 +290,7 @@ export default function App(): React.ReactElement {
           />
         )}
         {activeTab === 'calendar' && <CalendarView userLookup={userLookup} />}
-        {activeTab === 'brett-calendar' && <BrettCalendarView />}
+        {activeTab === 'calendar-v2' && <CalendarV2View />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'settings' && (
           <Settings />

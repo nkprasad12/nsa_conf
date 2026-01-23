@@ -12,14 +12,22 @@ import {
   DragAndDrop, 
   Resize
 } from '@syncfusion/ej2-react-schedule';
-import './BrettCalendarView.css';
-import { sampleData } from './brettData';
+import './CalendarV2.css';
+import { sampleData } from './calendarV2Data';
 
-export default function BrettCalendarView() {
+export default function CalendarV2View() {
   const scheduleRef = useRef<ScheduleComponent>(null);
 
-  const conferenceStartDate = new Date(2025, 0, 23);
-  const conferenceEndDate = new Date(2026, 0, 27, 23, 59, 59);
+  const today = new Date();
+  const conferenceStartDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const conferenceEndDate = new Date(
+    conferenceStartDate.getFullYear(),
+    conferenceStartDate.getMonth(),
+    conferenceStartDate.getDate() + 4,
+    23,
+    59,
+    59
+  );
 
   // Create state to control the view and the date
   const [view, setView] = useState<any>('Day');
