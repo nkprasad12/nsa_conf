@@ -237,6 +237,14 @@ h2 {
     color: #64748b !important;
 }
 
+/* Force input text color to be dark so it is visible on white background */
+.e-schedule-dialog .e-input,
+.e-schedule-dialog textarea,
+.e-quick-popup-wrapper .e-input,
+.e-quick-popup-wrapper textarea {
+    color: #1f2937 !important;
+}
+
 /* 5. Date & Time Picker Section */
 .e-schedule-dialog .e-datetimepicker.e-control-wrapper {
     margin-top: 10px;
