@@ -11,6 +11,7 @@ import { canEdit, PermissibleItem } from './permissions';
 const TABS = [
   { label: 'Announcements', key: 'announcements' },
   { label: 'Calendar', key: 'calendar' },
+  { label: 'Brett Calendar', key: 'brett-calendar' },
   { label: 'Settings', key: 'settings' },
 ] as const;
 
@@ -288,6 +289,7 @@ export default function App(): React.ReactElement {
           />
         )}
         {activeTab === 'calendar' && <CalendarView userLookup={userLookup} />}
+        {activeTab === 'brett-calendar' && <CalendarView userLookup={userLookup} />}
         {activeTab === 'users' && isAdmin && <UserManagement />}
         {activeTab === 'settings' && (
           <Settings />
