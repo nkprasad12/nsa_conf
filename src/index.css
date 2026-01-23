@@ -187,7 +187,8 @@ h2 {
 }
 
 /* 3. Header Text */
-.e-quick-popup-wrapper .e-subject {
+.e-quick-popup-wrapper .e-subject,
+.e-quick-popup-wrapper .e-header-text {
     color: #ffffff !important;
     font-size: 1.15rem !important;
     font-weight: 600 !important;
@@ -324,7 +325,9 @@ h2 {
 }
 
 .e-schedule-dialog.e-dialog .e-dlg-header-content .e-dlg-header,
-.e-schedule-dialog.e-dialog .e-header-content .e-dlg-header {
+.e-schedule-dialog.e-dialog .e-header-content .e-dlg-header,
+.e-schedule-dialog .e-dlg-header,
+.e-schedule-dialog .e-title-text {
     color: #ffffff !important;
     font-size: 1.25rem !important;
     font-weight: 600 !important;
