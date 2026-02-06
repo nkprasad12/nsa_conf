@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { 
   ScheduleComponent, 
   Day, 
@@ -22,16 +22,34 @@ export default function CalendarV2View() {
   const { user, isAdmin, groups } = useAuth();
   const scheduleRef = useRef<ScheduleComponent>(null);
   const [events, setEvents] = useState<any[]>([]);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+
+  // Calculate conference range once per mount
+  const { conferenceStartDate, conferenceEndDate, today } = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 23, 59, 59);
+    return { conferenceStartDate: start, conferenceEndDate: end, today: now };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
       const data = snapshot.docs.map(doc => {
+        // ... mapping logic remains the same ...
         const d = doc.data();
-        // Map Firestore fields to Syncfusion fields
-        // Prioritize StartTime/EndTime (Timestamps), fallback to 'start' string
-        const start = d.StartTime?.toDate ? d.StartTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T00:00:00')) : new Date());
-        const end = d.EndTime?.toDate ? d.EndTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T23:59:59')) : new Date());
+        
+        // Helper to handle Firestore Timestamps, JS Dates, or Strings
+        const parseDate = (val: any, fallback: Date) => {
+          if (!val) return fallback;
+          if (val.toDate) return val.toDate();
+          if (val instanceof Date) return val;
+          if (typeof val === 'string') return new Date(val);
+          return fallback;
+        };
+
+        const start = parseDate(d.StartTime, d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T00:00:00')) : today);
+        const end = parseDate(d.EndTime, d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T23:59:59')) : today);
         
         const item = {
           Id: doc.id,
@@ -52,23 +70,13 @@ export default function CalendarV2View() {
         };
       });
       setEvents(data);
+      if (!hasLoadedData) setHasLoadedData(true);
     });
 
     return () => unsubscribe();
-  }, [user, isAdmin, groups]);
+  }, [user, isAdmin, groups, today, hasLoadedData]);
 
-  const today = new Date();
-  const conferenceStartDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const conferenceEndDate = new Date(
-    conferenceStartDate.getFullYear(),
-    conferenceStartDate.getMonth(),
-    conferenceStartDate.getDate() + 4,
-    23,
-    59,
-    59
-  );
-
-  // Create state to control the view and the date
+  // Use the memoized conferenceStartDate
   const [view, setView] = useState<any>('Day');
   const [currentDate, setCurrentDate] = useState(conferenceStartDate);
 
@@ -251,11 +259,18 @@ export default function CalendarV2View() {
   const diffTime = Math.abs(conferenceEndDate.getTime() - conferenceStartDate.getTime());
   const conferenceLength = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+  const eventSettings = useMemo(() => ({ 
+    dataSource: events,
+    template: eventTemplate,
+    enableTooltip: true
+  }), [events]);
+
   return (
     <div style={{ padding: 16 }}>
       <h2>Conference Schedule</h2>      
       <div style={{ height: 'calc(100vh - 250px)', width: '100%', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '12px' }}>
         <ScheduleComponent
+          key={hasLoadedData ? "scheduler-loaded" : "scheduler-loading"}
           ref={scheduleRef}
           width='100%'
           height='100%'
@@ -269,11 +284,7 @@ export default function CalendarV2View() {
           allowMultiCellSelection={!!user}
           readonly={!user}
           navigating={onNavigating}
-          eventSettings={{ 
-            dataSource: events,
-            template: eventTemplate,
-            enableTooltip: true
-          }}
+          eventSettings={eventSettings}
           actionComplete={onActionComplete}
           dataBound={onDataBound}
           showWeekend={true}
