@@ -14,10 +14,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fullcalendar/daygrid": "^6.1.19",
-    "@fullcalendar/interaction": "^6.1.19",
-    "@fullcalendar/react": "^6.1.19",
-    "@fullcalendar/timegrid": "^6.1.19",
     "@syncfusion/ej2-base": "^32.1.24",
     "@syncfusion/ej2-buttons": "^32.1.24",
     "@syncfusion/ej2-calendars": "^32.1.24",
