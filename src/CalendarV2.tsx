@@ -28,16 +28,16 @@ export default function CalendarV2View() {
       const data = snapshot.docs.map(doc => {
         const d = doc.data();
         // Map Firestore fields to Syncfusion fields
-        // CalendarView uses 'title' and 'start' (string YYYY-MM-DD)
-        const start = d.start ? new Date(d.start + 'T00:00:00') : (d.StartTime?.toDate ? d.StartTime.toDate() : new Date());
-        const end = d.EndTime?.toDate ? d.EndTime.toDate() : (d.start ? new Date(d.start + 'T23:59:59') : new Date());
+        // Prioritize StartTime/EndTime (Timestamps), fallback to 'start' string
+        const start = d.StartTime?.toDate ? d.StartTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T00:00:00')) : new Date());
+        const end = d.EndTime?.toDate ? d.EndTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T23:59:59')) : new Date());
         
         return {
           Id: doc.id,
           Subject: d.title || d.Subject || 'Untitled Event',
           StartTime: start,
           EndTime: end,
-          IsAllDay: d.allDay ?? d.IsAllDay ?? (!d.StartTime && !!d.start),
+          IsAllDay: d.allDay ?? d.IsAllDay ?? (!d.StartTime && !!d.start && !d.start.includes('T')),
           Description: d.description || d.Description || '',
           Location: d.location || d.Location || '',
           ownerId: d.ownerId,
@@ -113,14 +113,13 @@ export default function CalendarV2View() {
       const data = args.data instanceof Array ? args.data[0] : args.data;
       addDoc(collection(db, 'events'), {
         title: data.Subject || 'New Event',
-        start: data.StartTime.toISOString().slice(0, 10),
         description: data.Description || '',
         location: data.Location || '',
         ownerId: user?.uid,
         Subject: data.Subject || 'New Event',
         StartTime: data.StartTime,
         EndTime: data.EndTime,
-        IsAllDay: data.IsAllDay,
+        IsAllDay: !!data.IsAllDay,
         Description: data.Description || '',
         Location: data.Location || ''
       }).catch(err => {
@@ -133,13 +132,12 @@ export default function CalendarV2View() {
       const eventRef = doc(db, 'events', data.Id);
       updateDoc(eventRef, {
         title: data.Subject,
-        start: data.StartTime.toISOString().slice(0, 10),
         description: data.Description || '',
         location: data.Location || '',
         Subject: data.Subject,
         StartTime: data.StartTime,
         EndTime: data.EndTime,
-        IsAllDay: data.IsAllDay,
+        IsAllDay: !!data.IsAllDay,
         Description: data.Description || '',
         Location: data.Location || ''
       }).catch(err => {
