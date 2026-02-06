@@ -25,6 +25,7 @@ export default function CalendarV2View() {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
+      const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
       const data = snapshot.docs.map(doc => {
         const d = doc.data();
         // Map Firestore fields to Syncfusion fields
@@ -32,7 +33,7 @@ export default function CalendarV2View() {
         const start = d.StartTime?.toDate ? d.StartTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T00:00:00')) : new Date());
         const end = d.EndTime?.toDate ? d.EndTime.toDate() : (d.start ? new Date(d.start + (d.start.includes('T') ? '' : 'T23:59:59')) : new Date());
         
-        return {
+        const item = {
           Id: doc.id,
           Subject: d.title || d.Subject || 'Untitled Event',
           StartTime: start,
@@ -44,12 +45,17 @@ export default function CalendarV2View() {
           allowedEditors: d.allowedEditors,
           allowedGroups: d.allowedGroups
         };
+
+        return {
+          ...item,
+          IsReadonly: !canEdit(item, authInfo)
+        };
       });
       setEvents(data);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user, isAdmin, groups]);
 
   const today = new Date();
   const conferenceStartDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -109,8 +115,14 @@ export default function CalendarV2View() {
   };
 
   const onActionComplete = (args: any) => {
+    const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
+
     if (args.requestType === 'eventCreated') {
       const data = args.data instanceof Array ? args.data[0] : args.data;
+      if (!user) {
+        alert("You must be signed in to create events.");
+        return;
+      }
       addDoc(collection(db, 'events'), {
         title: data.Subject || 'New Event',
         description: data.Description || '',
@@ -129,6 +141,10 @@ export default function CalendarV2View() {
 
     if (args.requestType === 'eventChanged') {
       const data = args.data instanceof Array ? args.data[0] : args.data;
+      if (!canEdit(data, authInfo)) {
+        alert("You don't have permission to edit this event.");
+        return;
+      }
       const eventRef = doc(db, 'events', data.Id);
       updateDoc(eventRef, {
         title: data.Subject,
@@ -148,6 +164,10 @@ export default function CalendarV2View() {
 
     if (args.requestType === 'eventRemoved') {
       const data = args.data instanceof Array ? args.data[0] : args.data;
+      if (!canEdit(data, authInfo)) {
+        alert("You don't have permission to delete this event.");
+        return;
+      }
       const eventId = data.Id || data[0].Id;
       if (eventId) {
         deleteDoc(doc(db, 'events', eventId)).catch(err => {
@@ -244,13 +264,15 @@ export default function CalendarV2View() {
           minDate={conferenceStartDate}
           maxDate={conferenceEndDate}
           workDays={conferenceWorkDays}
-          allowDragAndDrop={true}
-          allowResizing={true}
-          allowMultiCellSelection={true}
+          allowDragAndDrop={!!user}
+          allowResizing={!!user}
+          allowMultiCellSelection={!!user}
+          readonly={!user}
           navigating={onNavigating}
           eventSettings={{ 
             dataSource: events,
-            template: eventTemplate
+            template: eventTemplate,
+            enableTooltip: true
           }}
           actionComplete={onActionComplete}
           dataBound={onDataBound}
