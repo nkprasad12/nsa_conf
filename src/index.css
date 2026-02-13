@@ -1,354 +1,72 @@
-/* index.css */
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
 
-/* 1. Essential Syncfusion Framework Styles */
-@import '../node_modules/@syncfusion/ej2-base/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-buttons/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-popups/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-calendars/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-dropdowns/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-inputs/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-navigations/styles/material.css';
-@import '../node_modules/@syncfusion/ej2-react-schedule/styles/material.css';
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
 
-/* 2. Base Page Layout */
-html, body, #root {
-  height: 100%;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
-h2 {
-  margin: 8px 0 12px 0;
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
 }
 
-/* 3. Whitespace Fix: Forces the scheduler grid to fill 100% width
-.e-schedule .e-table-layout {
-  width: 100% !important;
-  table-layout: fixed !important;
-} */
-
-/* 4. "Today" Highlighting: Header (Day and Date) */
-.e-schedule .e-header-cells.e-today,
-.e-schedule .e-header-cells.e-current-day,
-.e-schedule .e-header-cells.my-today-header {
-  background-color: rgba(3, 169, 244, 0.05) !important;
-  box-shadow: inset 0 -4px 0 rgba(3, 169, 244, 0.5) !important; /* The distinct blue underline */
-}
-
-/* 5. "Today" Highlighting: Date Number Color */
-.e-schedule .e-header-date.e-today,
-.e-schedule .e-header-day.e-today {
-  color: #03a9f4 !important;
-  font-weight: bold !important;
-}
-
-/* 6. "Today" Highlighting: Grid Cells (The vertical column) */
-/* This targets both Syncfusion's native classes and your custom JS class */
-.e-schedule .e-work-cells.e-today,
-.e-schedule .e-work-cells.e-current-day,
-.e-schedule .e-work-cells.my-today-col,
-.e-schedule .e-all-day-cells.e-today,
-.e-schedule .e-all-day-cells.my-today-col {
-  background-color: rgba(3, 169, 244, 0.08) !important;
-}
-
-/* 7. Appointment Card Styling Enhancements */
-/* index.css */
-
-/* Refined White Card appearance */
-.e-schedule .e-appointment {
-  border-radius: 8px !important;
-  border: 1px solid #d1d5db !important; /* Slightly darker border for better definition */
-  background: #ffffff !important; 
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-  padding-left: 10px !important; /* Extra padding to clear the accent bar */
-  transition: transform 0.2s ease;
-}
-
-/* Color accent bar on the left */
-.e-schedule .e-appointment::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  background-color: #03a9f4 !important; /* Conference Blue */
-  border-radius: 8px 0 0 8px;
-}
-
-/* Force text visibility inside the custom template */
-.e-schedule .e-appointment .template-wrap .subject {
-  color: #111827 !important; /* Near black for maximum readability */
-  font-size: 13px !important;
-  display: block;
-}
-
-.e-schedule .e-appointment .template-wrap .time {
-  color: #4b5563 !important; /* Dark grey for the time */
-  font-weight: 500 !important;
-  display: block;
-}
-
-/* Hover effect */
-.e-schedule .e-appointment:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-  background-color: #f9fafb !important; /* Subtle change on hover */
-}
-
-
-/* Round the main scheduler corners */
-.e-schedule {
-  border-radius: 12px !important;
-  overflow: hidden;
-  border: 1px solid #e0e0e0 !important;
-}
-
-/* Subtle hover effect for grid cells */
-.e-schedule .e-work-cells:hover {
-  background-color: #f8f9fa !important;
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
   cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* Soften the grid lines */
-.e-schedule .e-work-cells, 
-.e-schedule .e-header-cells {
-  border-color: #f0f0f0 !important;
-}
-
-/* Ensure the custom multi-day view fits on one screen without horizontal scrolling
-.e-schedule .e-day-view.e-date-range-container .e-table-layout {
-  width: 100% !important;
-  table-layout: fixed !important;
-} */
-
-/* Optional: Slim down the header dates if 6 days feel crowded */
-.e-schedule .e-header-cells {
-  padding: 4px !important;
-  font-size: 12px !important;
-}
-
-
-/* Custom Styles for Full Schedule View */
-/* 1. Force the containers to allow horizontal overflow */
-.full-schedule-view .e-content-wrap,
-.full-schedule-view .e-date-header-wrap {
-    overflow-x: auto !important;
-}
-
-/* 2. Target the table with enough specificity to beat inline styles */
-.e-schedule.full-schedule-view .e-content-table,
-.e-schedule.full-schedule-view .e-date-header-container table {
-    width: auto !important;
-    min-width: 2000px !important; /* Forces the table to be wide enough for a scrollbar */
-    table-layout: fixed !important;
-}
-
-/* 3. Set the column widths */
-.full-schedule-view .e-content-wrap colgroup col:not(:first-child),
-.full-schedule-view .e-date-header-wrap colgroup col:not(:first-child) {
-    width: 200px !important;
-}
-
-/* 4. Match the cell widths */
-.full-schedule-view .e-header-cells,
-.full-schedule-view .e-work-cells {
-    width: 200px !important;
-    min-width: 200px !important;
-}
-
-/* 5. Keep the time column (the first one) narrow */
-.full-schedule-view .e-content-wrap colgroup col:first-child,
-.full-schedule-view .e-date-header-wrap colgroup col:first-child {
-    width: 70px !important;
-}
-
-
-/* Event Card css */
-
-/* 1. Main Popup Container */
-.e-quick-popup-wrapper {
-    box-shadow: 0 12px 30px rgba(0,0,0,0.15) !important;
-    border-radius: 16px !important; /* The rounding */
-    border: none !important;
-    overflow: hidden !important; /* Clips the header corners */
-    background-color: white;
-}
-
-/* 2. Popup Header - Added specific top rounding */
-.e-quick-popup-wrapper .e-popup-header {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%) !important;
-    padding: 16px !important;
-    border: none !important;
-    /* Force the top corners of the header to match the wrapper */
-    border-top-left-radius: 16px !important;
-    border-top-right-radius: 16px !important;
-}
-
-/* 3. Header Text */
-.e-quick-popup-wrapper .e-subject,
-.e-quick-popup-wrapper .e-header-text {
-    color: #ffffff !important;
-    font-size: 1.15rem !important;
-    font-weight: 600 !important;
-}
-
-/* 4. Icons in Header */
-.e-quick-popup-wrapper .e-popup-header .e-close,
-.e-quick-popup-wrapper .e-popup-header .e-edit,
-.e-quick-popup-wrapper .e-popup-header .e-delete {
-    color: #ffffff !important;
-}
-
-/* 5. Footer - Added bottom rounding */
-.e-quick-popup-wrapper .e-popup-footer {
-    background-color: #f8fafc !important;
-    border-bottom-left-radius: 16px !important;
-    border-bottom-right-radius: 16px !important;
-    padding: 12px 16px !important;
-}
-
-/* --- Event Editor Dialog --- */
-
-/* 1. Main Dialog Container */
-.e-schedule-dialog.e-dialog {
-    border-radius: 20px !important;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.2) !important;
-    border: none !important;
-    overflow: hidden;
-}
-
-/* 3. Form Content Area */
-.e-schedule-dialog .e-dlg-content {
-    padding: 30px !important;
-    background-color: #ffffff !important;
-}
-
-/* 4. Input Fields (Subject, Location, etc.) */
-.e-schedule-dialog .e-float-input.e-control-wrapper,
-.e-schedule-dialog .e-input-group.e-control-wrapper {
-    margin-bottom: 24px !important;
-    border-radius: 8px !important;
-}
-
-/* Customize the input text and labels */
-.e-schedule-dialog .e-float-text {
-    font-weight: 500 !important;
-    color: #64748b !important;
-}
-
-/* Force input text color to be dark so it is visible on white background */
-.e-schedule-dialog .e-input,
-.e-schedule-dialog textarea,
-.e-quick-popup-wrapper .e-input,
-.e-quick-popup-wrapper textarea {
-    color: #1f2937 !important;
-}
-
-/* 5. Date & Time Picker Section */
-.e-schedule-dialog .e-datetimepicker.e-control-wrapper {
-    margin-top: 10px;
-}
-
-/* 6. Dialog Footer (Save/Cancel/Delete) */
-.e-schedule-dialog .e-footer-content {
-    padding: 20px 30px !important;
-    background-color: #f8fafc !important;
-    border-top: 1px solid #f1f5f9 !important;
-}
-
-/* Button Styling in Editor */
-.e-schedule-dialog .e-btn.e-primary {
-    background-color: #3b82f6 !important; /* Save Button */
-    border-radius: 10px !important;
-    padding: 8px 24px !important;
-    font-weight: 600 !important;
-    text-transform: none !important;
-}
-
-.e-schedule-dialog .e-btn:not(.e-primary) {
-    border-radius: 10px !important;
-    text-transform: none !important;
-    font-weight: 600 !important;
-}
-
-/* 1. Target the Save button in the Full Editor */
-.e-schedule-dialog .e-footer-content .e-event-save.e-btn.e-primary,
-.e-quick-popup-wrapper .e-event-save.e-btn.e-primary {
-    background-color: #3b82f6 !important; /* Force Brand Blue */
-    color: #ffffff !important;            /* Force White Text */
-    border: none !important;
-}
-
-/* 2. Ensure the text remains white during hover/focus */
-.e-schedule-dialog .e-footer-content .e-event-save.e-btn.e-primary:hover,
-.e-schedule-dialog .e-footer-content .e-event-save.e-btn.e-primary:focus,
-.e-quick-popup-wrapper .e-event-save.e-btn.e-primary:hover {
-    background-color: #2563eb !important; /* Darker Blue */
-    color: #ffffff !important;            /* Keep Text White */
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-}
-
-/* 3. Global override for primary buttons inside the schedule just in case */
-.e-schedule .e-btn.e-primary {
-    color: #ffffff !important;
-}
-
-/* 1. The Header Background */
-.e-schedule-dialog.e-dialog .e-dlg-header-content {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%) !important;
-    padding: 20px 30px !important;
-    border-bottom: none !important;
-    border-top-left-radius: 20px !important;
-    border-top-right-radius: 20px !important;
-}
-
-/* 2. The Header Text (Forced White) */
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-dlg-header {
-    color: #ffffff !important;
-    font-size: 1.25rem !important;
-    font-weight: 600 !important;
-}
-
-/* 3. The Close 'X' Button (Forced White) */
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn,
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn .e-icon-dlg-close {
-    color: #ffffff !important;
-    opacity: 1 !important;
-}
-
-/* 4. The Hover Effect for the 'X' */
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-radius: 50% !important;
-}
-
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-dlg-header,
-.e-schedule-dialog.e-dialog .e-header-content .e-dlg-header,
-.e-schedule-dialog .e-dlg-header,
-.e-schedule-dialog .e-title-text {
-    color: #ffffff !important;
-    font-size: 1.25rem !important;
-    font-weight: 600 !important;
-}
-/* 2. The 'X' Close Icon */
-/* We target the button and the icon inside it */
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn,
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn .e-icon-dlg-close {
-    color: #ffffff !important;
-    opacity: 1 !important; /* Ensure it's fully bright white */
-}
-
-/* 3. Hover effect for the close button */
-.e-schedule-dialog.e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-radius: 50%;
-}
-
-/* 4. If you have an 'Edit' or 'Delete' icon in the quick info header, 
-      this ensures they are also white */
-.e-quick-popup-wrapper .e-popup-header .e-header-icon,
-.e-quick-popup-wrapper .e-popup-header .e-close-icon {
-    color: #ffffff !important;
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  body {
+    color: #213547;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+    color: #213547;
+  }
 }

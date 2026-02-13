@@ -1,22 +1,199 @@
-/* Ensure the scheduler fills its parent */
-.schedule-container {
-  height: 90vh;
+.app-container {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 3rem 0;
+  text-align: center;
+  background: #f5f7fa;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+.tab {
+  background: #f3f3f3;
+  border: none;
+  padding: 0.75em 1.5em;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: background 0.2s;
+  color: #222; /* stronger contrast for inactive tabs */
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.03);
+}
+.tab.active {
+  background: #646cff;
+  color: #fff;
+  font-weight: bold;
+}
+.tab:hover, .tab:focus {
+  background: #e9eaff;
+  outline: none;
+}
+/* larger, clearer title */
+.app-title {
+  color: #0b1220;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.5px;
+}
+.tab-content {
+  background: #fff;
+  color: #213547;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  padding: 2.5rem 2rem;
+  min-height: 300px;
+  text-align: left;
   width: 100%;
+  max-width: 900px;
+}
+.announcements {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-/* Force-hide columns that fall outside the conference window [1, 5] */
-.my-hidden-column {
-  display: none!important;
+@media (min-width: 900px) {
+  .app-container {
+    padding: 4rem 0;
+  }
+  .app-title {
+    font-size: 2.4rem;
+  }
+  .tab-content {
+    padding: 3rem 2.5rem;
+    min-height: 350px;
+    max-width: 900px;
+  }
+  .announcements {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem;
+  }
+  .tab {
+    font-size: 1.05rem;
+    padding: 0.9em 1.75em;
+  }
+}
+.announcement {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+}
+.announcement h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.25rem;
+  color: #222;
+  font-weight: 600;
 }
 
-/* Optional: Ensure the internal tables treat widths as fluid [13, 14] */
-.conference-schedule.e-date-header-wrap table,
-.conference-schedule.e-content-wrap table {
-  table-layout: fixed; /* Keep fixed for performance, but widths are % via JS */
-  width: 100%!important;
+.user-management table {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-/* Highlight "Today" if it falls within the conference  */
-.conference-schedule.e-today-update {
-  background-color: #e3f2fd!important;
+.user-management th {
+  background: #f8f9fa;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.user-management td {
+  color: #213547;
+}
+
+.user-management input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.user-management input[type="text"]:focus {
+  border-color: #646cff;
+  outline: none;
+}
+
+.calendar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  font-size: 1.15rem;
+}
+
+.calendar-wrapper {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* fullcalendar tweaks */
+.fc {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 1rem 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .tab-content {
+    padding: 1rem 0.5rem;
+    min-height: 200px;
+  }
+  .announcements {
+    gap: 1rem;
+  }
+  .announcement h3 {
+    font-size: 1.1rem;
+  }
+  .announcement p {
+    font-size: 1rem;
+  }
+}
+
+.settings {
+  color: #213547;
+}
+
+.settings h2 {
+  margin-top: 0;
+  color: #0b1220;
+}
+
+.setting-item {
+  margin-bottom: 2rem;
+}
+
+.setting-item h3 {
+  color: #0b1220;
+  margin-bottom: 1rem;
+}
+
+.setting-hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 1rem;
 }
