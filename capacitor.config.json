@@ -1,0 +1,5 @@
+{
+  "appId": "com.conference.app",
+  "appName": "conference-app",
+  "webDir": "dist"
+}
