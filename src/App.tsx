@@ -273,16 +273,71 @@ function SystemAdmin() {
   );
 }
 
+function Navbar({ 
+  title, 
+  availableTabs, 
+  activeTab, 
+  onTabClick, 
+  isMenuOpen, 
+  setIsMenuOpen 
+}: { 
+  title: string; 
+  availableTabs: Array<{ label: string, key: string }>; 
+  activeTab: string; 
+  onTabClick: (key: string) => void; 
+  isMenuOpen: boolean; 
+  setIsMenuOpen: (open: boolean) => void; 
+}) {
+  return (
+    <nav className="navbar">
+      <div className="navbar-container">
+        <div className="navbar-brand">{title}</div>
+        
+        <button className="menu-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <span className={`hamburger ${isMenuOpen ? 'open' : ''}`}></span>
+        </button>
+
+        <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
+          {availableTabs.map(tab => (
+            <button
+              key={tab.key}
+              className={`nav-item ${activeTab === tab.key ? 'active' : ''}`}
+              onClick={() => {
+                onTabClick(tab.key);
+                setIsMenuOpen(false);
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 export default function App(): React.ReactElement {
   const { user, isGlobalAdmin } = useAuth();
-  const { conferenceId, conference, isAdmin, groups, loading: confLoading, error: confError } = useConference();
+  const { conferenceId, tabId, conference, isAdmin, groups, loading: confLoading, error: confError } = useConference();
   const [userLookup, setUserLookup] = useState<Record<string, { email?: string; displayName?: string }>>({});
-  const [activeTab, setActiveTab] = useState<string>('announcements');
+  const [activeTab, setActiveTab] = useState<string>(tabId || 'announcements');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   const availableTabs = React.useMemo(() => {
     if (!conferenceId) {
-      return isGlobalAdmin ? [{ label: 'System Admin', key: 'sysadmin' }, { label: 'Settings', key: 'settings' }] : [{ label: 'Settings', key: 'settings' }];
+      return isGlobalAdmin ? [
+        { label: 'System Admin', key: 'sysadmin' }, 
+        { label: 'Settings', key: 'settings' }
+      ] : [
+        { label: 'Settings', key: 'settings' }
+      ];
+    }
+
+    // If we have a conference but user is not logged in, only show Settings (or let them see Announcements if public? Prompt says prompt for login)
+    // The requirement says: "If the user visits a deep link but isn't logged in, then prompt them for login."
+    if (!user) {
+      return [{ label: 'Settings', key: 'settings' }];
     }
 
     const tabs = [...TABS];
@@ -295,7 +350,32 @@ export default function App(): React.ReactElement {
       tabs.splice(tabs.length - 1, 0, { label: 'System Admin', key: 'sysadmin' });
     }
     return tabs;
-  }, [conferenceId, isAdmin, isGlobalAdmin]);
+  }, [conferenceId, isAdmin, isGlobalAdmin, user]);
+
+  // Handle URL sync
+  useEffect(() => {
+    if (conferenceId) {
+      const currentPath = window.location.pathname;
+      const expectedPath = `/c/${conferenceId}/${activeTab}`;
+      if (currentPath !== expectedPath) {
+        window.history.pushState({ tab: activeTab }, '', expectedPath);
+      }
+    }
+  }, [activeTab, conferenceId]);
+
+  // Handle browser navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const path = window.location.pathname;
+      const match = path.match(/\/c\/[^/]+\/([^/]+)/);
+      if (match && match[1]) {
+        setActiveTab(match[1]);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (availableTabs.length > 0 && !availableTabs.find(t => t.key === activeTab)) {
@@ -334,47 +414,82 @@ export default function App(): React.ReactElement {
   if (confLoading) return <div className="app-container">Loading conference...</div>;
   if (confError) return <div className="app-container"><h1>Error</h1><p>{confError}</p></div>;
 
+  const hasNoAccess = conferenceId && user && !isAdmin && groups.length === 0 && !isGlobalAdmin;
+  const showLoginPrompt = conferenceId && !user;
+
   return (
     <div className="app-container">
-      <h1 className="app-title">{conference ? conference.name : 'NSA Conference Portal'}</h1>
-      {conferenceId && <p style={{ textAlign: 'center', opacity: 0.7 }}>{conference?.startDate} - {conference?.endDate}</p>}
+      <Navbar 
+        title={conference ? conference.name : 'NSA Conference Portal'}
+        availableTabs={availableTabs}
+        activeTab={activeTab}
+        onTabClick={setActiveTab}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+      />
       
-      {!conferenceId && !isGlobalAdmin && (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <h2>Welcome</h2>
-          <p>Please use an official conference link to access materials.</p>
-          <p>If you are an organizer, please <a href="/settings">sign in</a>.</p>
-        </div>
-      )}
-
-      <div className="tabs">
-        {availableTabs.map(tab => (
-          <button
-            key={tab.key}
-            className={activeTab === tab.key ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div className="tab-content">
-        {activeTab === 'announcements' && conferenceId && (
-          <Announcements 
-            announcements={announcements} 
-            user={user} 
-            isAdmin={isAdmin}
-            isGlobalAdmin={isGlobalAdmin}
-            groups={groups} 
-            userLookup={userLookup}
-            conferenceId={conferenceId}
-          />
+      <div className="main-content">
+        {conferenceId && conference && !showLoginPrompt && !hasNoAccess && (
+          <div style={{ textAlign: 'center', marginBottom: '1rem', opacity: 0.7 }}>
+            <p>{conference.startDate} - {conference.endDate}</p>
+          </div>
         )}
-        {activeTab === 'calendar' && conferenceId && <CalendarV2View />}
-        {activeTab === 'users' && conferenceId && (isAdmin || isGlobalAdmin) && <UserManagement />}
-        {activeTab === 'sysadmin' && isGlobalAdmin && <SystemAdmin />}
-        {activeTab === 'settings' && (
-          <Settings />
+        
+        {!conferenceId && !isGlobalAdmin && (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <h2>Welcome</h2>
+            <p>Please use an official conference link to access materials.</p>
+            <p>If you are an organizer, please <button onClick={() => setActiveTab('settings')} style={{ background: 'none', border: 'none', color: '#646cff', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}>sign in</button>.</p>
+          </div>
+        )}
+
+        {showLoginPrompt && (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <h2>Sign In Required</h2>
+            <p>You must be signed in to view this conference content.</p>
+            <button 
+              onClick={() => setActiveTab('settings')} 
+              style={{ marginTop: 16, padding: '10px 20px', backgroundColor: '#646cff', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Go to Sign In
+            </button>
+          </div>
+        )}
+
+        {hasNoAccess && (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <h2 style={{ color: '#ff4d4f' }}>Access Denied</h2>
+            <p>You do not have permission to access the <strong>{conference?.name}</strong> portal.</p>
+            <p style={{ marginTop: 8, fontSize: '0.9em' }}>Signed in as: {user?.email}</p>
+            <button 
+              onClick={() => setActiveTab('settings')} 
+              style={{ marginTop: 16, padding: '8px 16px', backgroundColor: '#f3f3f3', border: '1px solid #ccc', borderRadius: 6, cursor: 'pointer' }}
+            >
+              Check Settings / Logout
+            </button>
+          </div>
+        )}
+
+        {!showLoginPrompt && !hasNoAccess && (
+          <div className="tab-content">
+            {activeTab === 'announcements' && conferenceId && (
+              <Announcements 
+                announcements={announcements} 
+                user={user} 
+                isAdmin={isAdmin}
+                isGlobalAdmin={isGlobalAdmin}
+                groups={groups} 
+                userLookup={userLookup}
+                conferenceId={conferenceId}
+              />
+            )}
+            {activeTab === 'calendar' && conferenceId && <CalendarV2View />}
+            {activeTab === 'users' && conferenceId && (isAdmin || isGlobalAdmin) && <UserManagement />}
+            {activeTab === 'sysadmin' && isGlobalAdmin && <SystemAdmin />}
+            {activeTab === 'settings' && (
+              <Settings />
+            )}
+          </div>
         )}
       </div>
     </div>

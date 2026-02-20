@@ -12,6 +12,7 @@ export interface ConferenceConfig {
 
 interface ConferenceContextType {
   conferenceId: string | null;
+  tabId: string | null;
   conference: ConferenceConfig | null;
   isAdmin: boolean; // Conference-specific admin
   groups: string[]; // Conference-specific groups
@@ -24,6 +25,7 @@ const ConferenceContext = createContext<ConferenceContextType | undefined>(undef
 export function ConferenceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [conferenceId, setConferenceId] = useState<string | null>(null);
+  const [tabId, setTabId] = useState<string | null>(null);
   const [conference, setConference] = useState<ConferenceConfig | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [groups, setGroups] = useState<string[]>([]);
@@ -31,14 +33,18 @@ export function ConferenceProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const parseSlug = () => {
+    const parseUrl = () => {
       const path = window.location.pathname;
-      const match = path.match(/^\/c\/([^/]+)/);
-      return match ? match[1] : null;
+      const match = path.match(/^\/c\/([^/]+)(?:\/([^/]+))?/);
+      return {
+        slug: match ? match[1] : null,
+        tab: match ? match[2] : null
+      };
     };
 
-    const slug = parseSlug();
+    const { slug, tab } = parseUrl();
     setConferenceId(slug);
+    setTabId(tab);
 
     if (slug) {
       const fetchConference = async () => {
@@ -96,6 +102,7 @@ export function ConferenceProvider({ children }: { children: React.ReactNode }) 
 
   const value = {
     conferenceId,
+    tabId,
     conference,
     isAdmin,
     groups,
