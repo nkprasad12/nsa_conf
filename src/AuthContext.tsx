@@ -5,8 +5,7 @@ import { auth, db } from './firebase';
 
 interface AuthContextType {
   user: User | null;
-  isAdmin: boolean;
-  groups: string[];
+  isGlobalAdmin: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -16,15 +15,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [groups, setGroups] = useState<string[]>([]);
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // Check for test overrides in URL
     const params = new URLSearchParams(window.location.search);
     const testUser = params.get('test_user');
-    const testGroups = params.get('test_groups');
     const testAdmin = params.get('test_admin');
 
     if (testUser) {
@@ -33,8 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: `${testUser}@example.com`,
         displayName: `Test User ${testUser}`,
       } as User);
-      setIsAdmin(testAdmin === 'true');
-      setGroups(testGroups ? testGroups.split(',') : []);
+      setIsGlobalAdmin(testAdmin === 'true');
       setLoading(false);
       return;
     }
@@ -55,33 +51,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lastLogin: new Date().toISOString()
           }, { merge: true });
 
+          // Role check is now read-only for most users
           const roleRef = doc(db, 'roles', firebaseUser.uid);
-          
-          // Save/Update basic user info for readability in admin panel
-          await setDoc(roleRef, {
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            lastSeen: new Date().toISOString()
-          }, { merge: true });
-
           const roleDoc = await getDoc(roleRef);
+          
           if (roleDoc.exists()) {
             const data = roleDoc.data();
-            setIsAdmin(data?.isAdmin === true);
-            setGroups(data?.groups || []);
+            setIsGlobalAdmin(data?.isAdmin === true);
+            
+            // Only update roles metadata if they ARE an admin
+            if (data?.isAdmin) {
+              await setDoc(roleRef, {
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                lastSeen: new Date().toISOString()
+              }, { merge: true });
+            }
           } else {
-            setIsAdmin(false);
-            setGroups([]);
+            setIsGlobalAdmin(false);
           }
         } catch (error) {
           console.error('Error fetching user role:', error);
-          setIsAdmin(false);
-          setGroups([]);
+          setIsGlobalAdmin(false);
         }
       } else {
         // User is not logged in
-        setIsAdmin(false);
-        setGroups([]);
+        setIsGlobalAdmin(false);
       }
       
       setLoading(false);
@@ -111,8 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
-    isAdmin,
-    groups,
+    isGlobalAdmin,
     loading,
     signInWithGoogle,
     logout,

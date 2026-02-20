@@ -16,27 +16,36 @@ import './CalendarV2.css';
 import { db } from './firebase';
 import { collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import { useConference } from './ConferenceContext';
 import { canEdit } from './permissions';
 
 export default function CalendarV2View() {
-  const { user, isAdmin, groups } = useAuth();
+  const { user, isGlobalAdmin } = useAuth();
+  const { conferenceId, conference, isAdmin, groups } = useConference();
   const scheduleRef = useRef<ScheduleComponent>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [hasLoadedData, setHasLoadedData] = useState(false);
 
-  // Calculate conference range once per mount
+  // Calculate conference range
   const { conferenceStartDate, conferenceEndDate, today } = useMemo(() => {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 23, 59, 59);
-    return { conferenceStartDate: start, conferenceEndDate: end, today: now };
-  }, []);
+    if (!conference) {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 23, 59, 59);
+      return { conferenceStartDate: start, conferenceEndDate: end, today: now };
+    }
+    return { 
+      conferenceStartDate: new Date(conference.startDate), 
+      conferenceEndDate: new Date(conference.endDate), 
+      today: now 
+    };
+  }, [conference]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
-      const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
+    if (!conferenceId) return;
+    const unsubscribe = onSnapshot(collection(db, 'conferences', conferenceId, 'events'), (snapshot) => {
+      const authInfo = user ? { uid: user.uid, isAdmin, isGlobalAdmin, groups } : null;
       const data = snapshot.docs.map(doc => {
-        // ... mapping logic remains the same ...
         const d = doc.data();
         
         // Helper to handle Firestore Timestamps, JS Dates, or Strings
@@ -74,11 +83,16 @@ export default function CalendarV2View() {
     });
 
     return () => unsubscribe();
-  }, [user, isAdmin, groups, today, hasLoadedData]);
+  }, [user, isAdmin, isGlobalAdmin, groups, today, hasLoadedData, conferenceId]);
 
   // Use the memoized conferenceStartDate
   const [view, setView] = useState<any>('Day');
   const [currentDate, setCurrentDate] = useState(conferenceStartDate);
+
+  // Update currentDate when conferenceStartDate changes (on load)
+  useEffect(() => {
+    setCurrentDate(conferenceStartDate);
+  }, [conferenceStartDate]);
 
   // Dynamically calculate work days based on the range
   const getConferenceWorkDays = (start: Date, end: Date) => {
@@ -93,7 +107,6 @@ export default function CalendarV2View() {
 
   const conferenceWorkDays = getConferenceWorkDays(conferenceStartDate, conferenceEndDate);
 
-  // 1. Re-added Logic to manually tag "Today" cells for the CSS to pick up
   const onDataBound = () => {
     const scheduleObj = scheduleRef.current;
     if (!scheduleObj) return;
@@ -109,7 +122,6 @@ export default function CalendarV2View() {
       if (msStr) {
         const ms = parseInt(msStr, 10);
         if (ms >= startOfDay && ms < endOfDay) {
-          // Apply the classes defined in your index.css
           n.classList.add('my-today-col');
           if (n.classList.contains('e-header-cells')) {
             n.classList.add('my-today-header');
@@ -123,7 +135,8 @@ export default function CalendarV2View() {
   };
 
   const onActionComplete = (args: any) => {
-    const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
+    const authInfo = user ? { uid: user.uid, isAdmin, isGlobalAdmin, groups } : null;
+    if (!conferenceId) return;
 
     if (args.requestType === 'eventCreated') {
       const data = args.data instanceof Array ? args.data[0] : args.data;
@@ -131,7 +144,7 @@ export default function CalendarV2View() {
         alert("You must be signed in to create events.");
         return;
       }
-      addDoc(collection(db, 'events'), {
+      addDoc(collection(db, 'conferences', conferenceId, 'events'), {
         title: data.Subject || 'New Event',
         description: data.Description || '',
         location: data.Location || '',
@@ -153,7 +166,7 @@ export default function CalendarV2View() {
         alert("You don't have permission to edit this event.");
         return;
       }
-      const eventRef = doc(db, 'events', data.Id);
+      const eventRef = doc(db, 'conferences', conferenceId, 'events', data.Id);
       updateDoc(eventRef, {
         title: data.Subject,
         description: data.Description || '',
@@ -176,9 +189,9 @@ export default function CalendarV2View() {
         alert("You don't have permission to delete this event.");
         return;
       }
-      const eventId = data.Id || data[0].Id;
+      const eventId = data.Id || (data[0] && data[0].Id);
       if (eventId) {
-        deleteDoc(doc(db, 'events', eventId)).catch(err => {
+        deleteDoc(doc(db, 'conferences', conferenceId, 'events', eventId)).catch(err => {
           console.error("Error deleting event:", err);
         });
       }
@@ -188,7 +201,6 @@ export default function CalendarV2View() {
       const scheduleObj = scheduleRef.current;
       if (!scheduleObj) return;
 
-      // Get the start and end of the currently visible dates
       const viewDates = scheduleObj.getCurrentViewDates();
       const firstVisibleDate = viewDates[0];
       const lastVisibleDate = viewDates[viewDates.length - 1];
@@ -197,13 +209,11 @@ export default function CalendarV2View() {
       const nextBtn = scheduleObj.element.querySelector('.e-next') as HTMLElement;
 
       if (prevBtn) {
-        // Disable if the FIRST visible day is the start of the conference
         const isAtStart = firstVisibleDate <= conferenceStartDate;
         prevBtn.style.opacity = isAtStart ? '0.3' : '1';
         prevBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
       }
       if (nextBtn) {
-        // Disable if the LAST visible day is the end of the conference
         const isAtEnd = lastVisibleDate >= conferenceEndDate;
         nextBtn.style.opacity = isAtEnd ? '0.3' : '1';
         nextBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
@@ -228,18 +238,13 @@ export default function CalendarV2View() {
       setView(target); 
 
       if (target === 'single-day' || target === 'Day') {
-        const today = new Date();
-        if (today >= conferenceStartDate && today <= conferenceEndDate) {
-          // 1. Force the internal scheduler property immediately
-          args.currentDate = today; 
-          
-          // 2. Directly update the ref to bypass the state-render delay
+        const todayAtConf = new Date();
+        if (todayAtConf >= conferenceStartDate && todayAtConf <= conferenceEndDate) {
+          args.currentDate = todayAtConf; 
           if (scheduleRef.current) {
-            scheduleRef.current.selectedDate = today;
+            scheduleRef.current.selectedDate = todayAtConf;
           }
-
-          // 3. Keep React state in sync
-          setCurrentDate(today);
+          setCurrentDate(todayAtConf);
         }
       } else if (target === 'full-schedule') {
         args.currentDate = conferenceStartDate;
@@ -255,9 +260,8 @@ export default function CalendarV2View() {
     }
   };
 
-  // Calculate the total number of days in the conference
   const diffTime = Math.abs(conferenceEndDate.getTime() - conferenceStartDate.getTime());
-  const conferenceLength = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const conferenceLength = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
   const eventSettings = useMemo(() => ({ 
     dataSource: events,
@@ -270,7 +274,7 @@ export default function CalendarV2View() {
       <h2>Conference Schedule</h2>      
       <div style={{ height: 'calc(100vh - 250px)', width: '100%', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '12px' }}>
         <ScheduleComponent
-          key={hasLoadedData ? "scheduler-loaded" : "scheduler-loading"}
+          key={hasLoadedData ? `scheduler-${conferenceId}-loaded` : `scheduler-${conferenceId}-loading`}
           ref={scheduleRef}
           width='100%'
           height='100%'

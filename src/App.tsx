@@ -4,8 +4,9 @@ import CalendarV2View from './CalendarV2';
 import Settings from './Settings';
 import UserManagement from './UserManagement';
 import { useAuth } from './AuthContext';
+import { useConference } from './ConferenceContext';
 import { db } from './firebase';
-import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, query, orderBy, deleteDoc, setDoc } from 'firebase/firestore';
 import { canEdit, PermissibleItem } from './permissions';
 
 const TABS = [
@@ -21,12 +22,14 @@ interface Announcement extends PermissibleItem {
   createdAt?: any;
 }
 
-function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
+function Announcements({ announcements, user, isAdmin, isGlobalAdmin, groups, userLookup, conferenceId }: {
   announcements: Announcement[];
   user: any;
   isAdmin: boolean;
+  isGlobalAdmin: boolean;
   groups: string[];
   userLookup: Record<string, { email?: string; displayName?: string }>;
+  conferenceId: string;
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<{ title: string; body: string; allowedEditors: string[]; allowedGroups: string[] }>({ 
@@ -55,7 +58,7 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
 
   async function saveEdit(id: string) {
     try {
-      const announcementRef = doc(db, 'announcements', id);
+      const announcementRef = doc(db, 'conferences', conferenceId, 'announcements', id);
       await updateDoc(announcementRef, {
         title: draft.title,
         body: draft.body,
@@ -72,7 +75,7 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
   async function deleteAnnouncement(id: string) {
     if (!window.confirm('Are you sure you want to delete this announcement?')) return;
     try {
-      await deleteDoc(doc(db, 'announcements', id));
+      await deleteDoc(doc(db, 'conferences', conferenceId, 'announcements', id));
     } catch (error) {
       console.error('Error deleting announcement:', error);
       alert('Failed to delete. You might not have permission.');
@@ -90,7 +93,7 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
     }
 
     try {
-      await addDoc(collection(db, 'announcements'), {
+      await addDoc(collection(db, 'conferences', conferenceId, 'announcements'), {
         title: newAnnouncement.title,
         body: newAnnouncement.body,
         ownerId: user.uid,
@@ -106,15 +109,11 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
     }
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-  }
-
-  const authInfo = user ? { uid: user.uid, isAdmin, groups } : null;
+  const authInfo = user ? { uid: user.uid, isAdmin, isGlobalAdmin, groups } : null;
 
   return (
     <div className="announcements">
-      {isAdmin && !isAdding && (
+      {(isAdmin || isGlobalAdmin) && !isAdding && (
         <button 
           onClick={() => setIsAdding(true)} 
           style={{ marginBottom: 20, padding: '8px 16px', backgroundColor: '#646cff', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}
@@ -147,9 +146,6 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
               onChange={e => setNewAnnouncement(prev => ({ ...prev, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
               style={{ width: '100%', padding: 8 }} 
             />
-            <div style={{ fontSize: '0.7em', color: '#666', marginTop: 4 }}>
-              Resolved: {(newAnnouncement.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
-            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
@@ -183,9 +179,6 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
                   onChange={e => setDraft(d => ({ ...d, allowedEditors: e.target.value.split(',').map(s => s.trim()).filter(s => s) }))} 
                   style={{ width: '100%', padding: 8 }} 
                 />
-                <div style={{ fontSize: '0.7em', color: '#666', marginTop: 4 }}>
-                  Resolved: {(draft.allowedEditors || []).map(uid => userLookup[uid]?.email || uid).join(', ')}
-                </div>
               </div>
 
               <div style={{ marginBottom: 16 }}>
@@ -199,7 +192,7 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
 
               <div>
                 <button onClick={() => saveEdit(a.id)}>Save</button>
-                <button onClick={cancelEdit} style={{ marginLeft: 8 }}>Cancel</button>
+                <button onClick={() => setEditingId(null)} style={{ marginLeft: 8 }}>Cancel</button>
               </div>
             </div>
           ) : (
@@ -220,24 +213,99 @@ function Announcements({ announcements, user, isAdmin, groups, userLookup }: {
   );
 }
 
-export default function App(): React.ReactElement {
-  const { user, isAdmin, groups } = useAuth();
-  const [userLookup, setUserLookup] = useState<Record<string, { email?: string; displayName?: string }>>({});
-  
-  const availableTabs = React.useMemo(() => {
-    const tabs = [...TABS];
-    if (isAdmin) {
-      // @ts-ignore - adding a dynamic tab
-      tabs.splice(2, 0, { label: 'Users', key: 'users' });
-    }
-    return tabs;
-  }, [isAdmin]);
-
-  const [activeTab, setActiveTab] = useState<string>(TABS[0].key);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+function SystemAdmin() {
+  const [conferences, setConferences] = useState<any[]>([]);
+  const [newConf, setNewConf] = useState({ id: '', name: '', startDate: '', endDate: '' });
 
   useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    return onSnapshot(collection(db, 'conferences'), (snapshot) => {
+      setConferences(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+  }, []);
+
+  async function handleCreate() {
+    if (!newConf.id || !newConf.name) return alert('Fill ID and Name');
+    try {
+      await setDoc(doc(db, 'conferences', newConf.id), {
+        name: newConf.name,
+        startDate: newConf.startDate,
+        endDate: newConf.endDate,
+      });
+      setNewConf({ id: '', name: '', startDate: '', endDate: '' });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create conference. Only Global Admins can do this.');
+    }
+  }
+
+  return (
+    <div className="admin-content">
+      <h2>System Administration</h2>
+      <div style={{ padding: 16, border: '1px solid #ccc', marginBottom: 20 }}>
+        <h3>Create New Conference</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <input placeholder="Slug (e.g. nsa-2026)" value={newConf.id} onChange={e => setNewConf({ ...newConf, id: e.target.value.toLowerCase().replace(/\s+/g, '-') })} />
+          <input placeholder="Name" value={newConf.name} onChange={e => setNewConf({ ...newConf, name: e.target.value })} />
+          <div>
+            <label>Start Date: </label>
+            <input type="date" value={newConf.startDate} onChange={e => setNewConf({ ...newConf, startDate: e.target.value })} />
+          </div>
+          <div>
+            <label>End Date: </label>
+            <input type="date" value={newConf.endDate} onChange={e => setNewConf({ ...newConf, endDate: e.target.value })} />
+          </div>
+          <button onClick={handleCreate} style={{ padding: '8px', backgroundColor: '#646cff', color: 'white', border: 'none' }}>Create Conference</button>
+        </div>
+      </div>
+      <div>
+        <h3>Existing Conferences</h3>
+        <div style={{ display: 'grid', gap: '10px' }}>
+          {conferences.map(c => (
+            <div key={c.id} style={{ padding: 10, border: '1px solid #eee' }}>
+              <strong>{c.name}</strong> (<code>{c.id}</code>)<br/>
+              <span style={{ fontSize: '0.8em' }}>{c.startDate} to {c.endDate}</span><br/>
+              <a href={`/c/${c.id}`} style={{ color: '#646cff' }}>View Site</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App(): React.ReactElement {
+  const { user, isGlobalAdmin } = useAuth();
+  const { conferenceId, conference, isAdmin, groups, loading: confLoading, error: confError } = useConference();
+  const [userLookup, setUserLookup] = useState<Record<string, { email?: string; displayName?: string }>>({});
+  const [activeTab, setActiveTab] = useState<string>('announcements');
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+  const availableTabs = React.useMemo(() => {
+    if (!conferenceId) {
+      return isGlobalAdmin ? [{ label: 'System Admin', key: 'sysadmin' }, { label: 'Settings', key: 'settings' }] : [{ label: 'Settings', key: 'settings' }];
+    }
+
+    const tabs = [...TABS];
+    if (isAdmin || isGlobalAdmin) {
+      // @ts-ignore
+      tabs.splice(2, 0, { label: 'Users', key: 'users' });
+    }
+    if (isGlobalAdmin) {
+      // @ts-ignore
+      tabs.splice(tabs.length - 1, 0, { label: 'System Admin', key: 'sysadmin' });
+    }
+    return tabs;
+  }, [conferenceId, isAdmin, isGlobalAdmin]);
+
+  useEffect(() => {
+    if (availableTabs.length > 0 && !availableTabs.find(t => t.key === activeTab)) {
+      setActiveTab(availableTabs[0].key);
+    }
+  }, [availableTabs, activeTab]);
+
+  useEffect(() => {
+    if (!conferenceId) return;
+    const q = query(collection(db, 'conferences', conferenceId, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -247,10 +315,10 @@ export default function App(): React.ReactElement {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [conferenceId]);
 
   useEffect(() => {
-    // Fetch roles to resolve UIDs to names/emails
+    // Resolve UIDs globally
     const unsubscribe = onSnapshot(collection(db, 'roles'), (snapshot) => {
       const lookup: Record<string, { email?: string; displayName?: string }> = {};
       snapshot.docs.forEach(doc => {
@@ -263,9 +331,22 @@ export default function App(): React.ReactElement {
     return () => unsubscribe();
   }, []);
 
+  if (confLoading) return <div className="app-container">Loading conference...</div>;
+  if (confError) return <div className="app-container"><h1>Error</h1><p>{confError}</p></div>;
+
   return (
     <div className="app-container">
-      <h1 className="app-title">NSA Conference Portal</h1>
+      <h1 className="app-title">{conference ? conference.name : 'NSA Conference Portal'}</h1>
+      {conferenceId && <p style={{ textAlign: 'center', opacity: 0.7 }}>{conference?.startDate} - {conference?.endDate}</p>}
+      
+      {!conferenceId && !isGlobalAdmin && (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <h2>Welcome</h2>
+          <p>Please use an official conference link to access materials.</p>
+          <p>If you are an organizer, please <a href="/settings">sign in</a>.</p>
+        </div>
+      )}
+
       <div className="tabs">
         {availableTabs.map(tab => (
           <button
@@ -278,17 +359,20 @@ export default function App(): React.ReactElement {
         ))}
       </div>
       <div className="tab-content">
-        {activeTab === 'announcements' && (
+        {activeTab === 'announcements' && conferenceId && (
           <Announcements 
             announcements={announcements} 
             user={user} 
-            isAdmin={isAdmin} 
+            isAdmin={isAdmin}
+            isGlobalAdmin={isGlobalAdmin}
             groups={groups} 
             userLookup={userLookup}
+            conferenceId={conferenceId}
           />
         )}
-        {activeTab === 'calendar' && <CalendarV2View />}
-        {activeTab === 'users' && isAdmin && <UserManagement />}
+        {activeTab === 'calendar' && conferenceId && <CalendarV2View />}
+        {activeTab === 'users' && conferenceId && (isAdmin || isGlobalAdmin) && <UserManagement />}
+        {activeTab === 'sysadmin' && isGlobalAdmin && <SystemAdmin />}
         {activeTab === 'settings' && (
           <Settings />
         )}

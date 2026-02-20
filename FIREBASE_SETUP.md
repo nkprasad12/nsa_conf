@@ -57,50 +57,70 @@ To set up your first admin user:
 
 ### 6. Configure Firestore Security Rules
 
-Replace the default Firestore rules with these to enforce fine-grained ACLs:
+Replace the default Firestore rules with these to enforce multi-tenant isolation and hierarchical ACLs:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is a global admin
-    function isAdmin() {
+    // Helper function to check if user is a global developer admin
+    function isGlobalAdmin() {
       return request.auth != null && 
              get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Helper function to check if user can edit a specific document
-    function canEdit(data) {
-      return isAdmin() || 
+    // Helper function to check if user is an admin for a specific conference
+    function isConfAdmin(confId) {
+      let confRole = get(/databases/$(database)/documents/conferences/$(confId)/roles/$(request.auth.uid)).data;
+      return isGlobalAdmin() || (request.auth != null && confRole.isAdmin == true);
+    }
+
+    // Helper function to check if user can edit a specific conference item
+    function canEditConf(confId, item) {
+      let confRole = get(/databases/$(database)/documents/conferences/$(confId)/roles/$(request.auth.uid)).data;
+      return isGlobalAdmin() || 
+             confRole.isAdmin == true ||
              (request.auth != null && (
-               data.ownerId == request.auth.uid ||
-               request.auth.uid in data.allowedEditors ||
-               get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.groups.hasAny(data.allowedGroups)
+               item.ownerId == request.auth.uid ||
+               request.auth.uid in item.allowedEditors ||
+               confRole.groups.hasAny(item.allowedGroups)
              ));
     }
     
-    // Roles collection - users can read their own, only admins can read all and write
+    // Global Roles - Only Global Admins can write
     match /roles/{userId} {
-      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-      allow write: if isAdmin();
+      allow read: if (request.auth != null && request.auth.uid == userId) || isGlobalAdmin();
+      allow write: if isGlobalAdmin();
     }
 
-    // Users collection - users can read and write their own profile, admins can read all
+    // Global Users - Users can write their own profile
     match /users/{userId} {
-      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+      allow read: if (request.auth != null && request.auth.uid == userId) || isGlobalAdmin();
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Announcements collection
-    match /announcements/{announcementId} {
-      allow read: if true; // Public read
-      allow write: if canEdit(resource.data) || (request.method == 'create' && canEdit(request.resource.data));
-    }
-    
-    // Events collection
-    match /events/{eventId} {
-      allow read: if true; // Public read
-      allow write: if canEdit(resource.data) || (request.method == 'create' && canEdit(request.resource.data));
+    // Conferences Collection
+    match /conferences/{confId} {
+      allow read: if true; // Publicly readable metadata
+      allow write: if isGlobalAdmin();
+
+      // Conference specific announcements
+      match /announcements/{id} {
+        allow read: if true;
+        allow write: if canEditConf(confId, resource.data) || (request.method == 'create' && canEditConf(confId, request.resource.data));
+      }
+
+      // Conference specific events
+      match /events/{id} {
+        allow read: if true;
+        allow write: if canEditConf(confId, resource.data) || (request.method == 'create' && canEditConf(confId, request.resource.data));
+      }
+
+      // Conference specific roles
+      match /roles/{userId} {
+        allow read: if (request.auth != null && request.auth.uid == userId) || isConfAdmin(confId);
+        allow write: if isConfAdmin(confId);
+      }
     }
   }
 }

@@ -6,10 +6,10 @@ export interface PermissibleItem {
 
 export function canEdit(
   item: PermissibleItem,
-  user: { uid: string; isAdmin: boolean; groups: string[] } | null
+  user: { uid: string; isAdmin: boolean; isGlobalAdmin?: boolean; groups: string[] } | null
 ): boolean {
   if (!user) return false;
-  if (user.isAdmin) return true;
+  if (user.isGlobalAdmin || user.isAdmin) return true;
   
   // Check if user is the owner
   if (item.ownerId && item.ownerId === user.uid) return true;

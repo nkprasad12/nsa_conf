@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { useConference } from './ConferenceContext';
 
 interface UserRole {
   id: string; // This is the UID
@@ -11,17 +12,22 @@ interface UserRole {
 }
 
 export default function UserManagement() {
+  const { conferenceId } = useConference();
   const [usersList, setUsersList] = useState<any[]>([]);
   const [rolesMap, setRolesMap] = useState<Record<string, any>>({});
   const [isAdding, setIsAdding] = useState(false);
   const [newUser, setNewUser] = useState({ uid: '', isAdmin: false, groups: '' });
 
   useEffect(() => {
+    // Users are still global
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       setUsersList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    const unsubscribeRoles = onSnapshot(collection(db, 'roles'), (snapshot) => {
+    if (!conferenceId) return;
+
+    // Roles are now conference-specific
+    const unsubscribeRoles = onSnapshot(collection(db, 'conferences', conferenceId, 'roles'), (snapshot) => {
       const roles: Record<string, any> = {};
       snapshot.docs.forEach(doc => {
         roles[doc.id] = doc.data();
@@ -33,7 +39,7 @@ export default function UserManagement() {
       unsubscribeUsers();
       unsubscribeRoles();
     };
-  }, []);
+  }, [conferenceId]);
 
   // Merge users and roles
   const allUserIds = Array.from(new Set([
@@ -54,8 +60,9 @@ export default function UserManagement() {
   });
 
   async function handleUpdateUser(uid: string, isAdmin: boolean, groups: string[]) {
+    if (!conferenceId) return;
     try {
-      await setDoc(doc(db, 'roles', uid), {
+      await setDoc(doc(db, 'conferences', conferenceId, 'roles', uid), {
         isAdmin,
         groups
       }, { merge: true });
@@ -66,12 +73,12 @@ export default function UserManagement() {
   }
 
   async function handleAddUser() {
-    if (!newUser.uid) {
+    if (!newUser.uid || !conferenceId) {
       alert('Please enter a UID.');
       return;
     }
     try {
-      await setDoc(doc(db, 'roles', newUser.uid), {
+      await setDoc(doc(db, 'conferences', conferenceId, 'roles', newUser.uid), {
         isAdmin: newUser.isAdmin,
         groups: newUser.groups.split(',').map(s => s.trim()).filter(s => s)
       });
@@ -84,9 +91,10 @@ export default function UserManagement() {
   }
 
   async function handleDeleteRole(uid: string) {
+    if (!conferenceId) return;
     if (!window.confirm('Are you sure you want to remove this user\'s roles?')) return;
     try {
-      await deleteDoc(doc(db, 'roles', uid));
+      await deleteDoc(doc(db, 'conferences', conferenceId, 'roles', uid));
     } catch (error) {
       console.error('Error deleting role:', error);
       alert('Failed to delete role.');
